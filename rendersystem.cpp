@@ -22,9 +22,6 @@ RenderSystem::RenderSystem()
     glEnable(GL_DEPTH_TEST);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    m_viewMatrix = glm::lookAt(4.0f / 6.0f * glm::vec3(500.0f, 600.0f, 500.0f),
-        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
     initLightsAndMaterial();
     initFlags();
 
@@ -58,22 +55,6 @@ void RenderSystem::initLightsAndMaterial()
     m_phongShader.setUniform(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), "u_material.specular_color");
     m_phongShader.setUniform(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), "u_material.emissive_color");
     m_phongShader.setUniform(0.0f, "u_material.specular_exponent"); // [0.0, 128.0]
-
-    // set initial light uniforms
-    m_phongShader.setUniform(true, "u_light[0].light_on");
-    m_phongShader.setUniform(glm::vec4(0.0f, 100.0f, 0.0f, 1.0f), "u_light[0].position");
-    m_phongShader.setUniform(glm::vec4(0.13f, 0.13f, 0.13f, 1.0f), "u_light[0].ambient_color");
-    m_phongShader.setUniform(glm::vec4(0.5f, 0.5f, 0.5f, 1.5f), "u_light[0].diffuse_color");
-    m_phongShader.setUniform(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f), "u_light[0].specular_color");
-
-    m_phongShader.setUniform(true, "u_light[1].light_on");
-    m_phongShader.setUniform(glm::vec4(-200.0f, 500.0f, -200.0f, 1.0f) * m_viewMatrix, "u_light[1].position");
-    m_phongShader.setUniform(glm::vec4(0.152f, 0.152f, 0.152f, 1.0f), "u_light[1].ambient_color");
-    m_phongShader.setUniform(glm::vec4(0.572f, 0.572f, 0.572f, 1.0f), "u_light[1].diffuse_color");
-    m_phongShader.setUniform(glm::vec4(0.772f, 0.772f, 0.772f, 1.0f), "u_light[1].specular_color");
-    m_phongShader.setUniform(glm::vec3(0.0f, -1.0f, 0.0f) * glm::mat3(m_viewMatrix), "u_light[1].spot_direction");
-    m_phongShader.setUniform(20.0f, "u_light[1].spot_cutoff_angle");
-    m_phongShader.setUniform(8.0f, "u_light[1].spot_exponent");
 }
 
 void RenderSystem::initFlags()
@@ -255,11 +236,30 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
     float aspectRatio = static_cast<float>(scene.windowSize.x) / scene.windowSize.y;
     glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), aspectRatio, 100.0f, 20000.0f);
 
+    glm::mat4 viewMatrix;
     glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
     glm::mat3 modelViewMatrixInvTrans;
 
+    viewMatrix = glm::lookAt(scene.eyePos, scene.eyePos + scene.lookDir, scene.upDir);
+
+    // set initial light uniforms
+    m_phongShader.setUniform(true, "u_light[0].light_on");
+    m_phongShader.setUniform(glm::vec4(0.0f, 100.0f, 0.0f, 1.0f), "u_light[0].position");
+    m_phongShader.setUniform(glm::vec4(0.13f, 0.13f, 0.13f, 1.0f), "u_light[0].ambient_color");
+    m_phongShader.setUniform(glm::vec4(0.5f, 0.5f, 0.5f, 1.5f), "u_light[0].diffuse_color");
+    m_phongShader.setUniform(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f), "u_light[0].specular_color");
+
+    m_phongShader.setUniform(true, "u_light[1].light_on");
+    m_phongShader.setUniform(viewMatrix * glm::vec4(-200.0f, 500.0f, -200.0f, 1.0f), "u_light[1].position");
+    m_phongShader.setUniform(glm::vec4(0.152f, 0.152f, 0.152f, 1.0f), "u_light[1].ambient_color");
+    m_phongShader.setUniform(glm::vec4(0.572f, 0.572f, 0.572f, 1.0f), "u_light[1].diffuse_color");
+    m_phongShader.setUniform(glm::vec4(0.772f, 0.772f, 0.772f, 1.0f), "u_light[1].specular_color");
+    m_phongShader.setUniform(glm::mat3(viewMatrix) * glm::vec3(0.0f, -1.0f, 0.0f), "u_light[1].spot_direction");
+    m_phongShader.setUniform(20.0f, "u_light[1].spot_cutoff_angle");
+    m_phongShader.setUniform(8.0f, "u_light[1].spot_exponent");
+
     // draw the floor
-    modelViewMatrix = glm::translate(m_viewMatrix, glm::vec3(-500.0f, 0.0f, 500.0f));
+    modelViewMatrix = glm::translate(viewMatrix, glm::vec3(-500.0f, 0.0f, 500.0f));
     modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(1000.0f, 1000.0f, 1000.0f));
     modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
@@ -284,7 +284,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
     for (ou::Entity const& ent : engine.iterate<Tiger>()) {
         Tiger const& tiger = ent.get<Tiger>();
 
-        modelViewMatrix = glm::rotate(m_viewMatrix, -tiger.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+        modelViewMatrix = glm::rotate(viewMatrix, -tiger.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(200.0f, 0.0f, 0.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;

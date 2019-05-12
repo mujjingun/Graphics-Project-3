@@ -36,8 +36,6 @@ private:
     ou::Shader m_simpleShader;
     ou::Shader m_phongShader;
 
-    glm::mat4 m_viewMatrix;
-
     bool m_flag_tiger_animation;
     bool m_flag_polygon_fill;
     bool m_flag_texture_mapping;

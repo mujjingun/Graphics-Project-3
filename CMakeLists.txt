@@ -21,6 +21,8 @@ add_executable(graphics3
     scene.cpp
     rendersystem.cpp
     animationsystem.cpp
+    controlsystem.cpp
+    input.cpp
 )
 
 target_link_libraries(graphics3

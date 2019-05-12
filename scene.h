@@ -10,7 +10,7 @@ public:
 
     void render();
 
-    void mouseClick();
+    void mouseClick(int button, int event);
     void mouseMove(int x, int y);
     void mouseEnter();
 

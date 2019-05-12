@@ -5,6 +5,7 @@
 
 struct SceneState {
     glm::ivec2 windowSize;
+    glm::vec3 eyePos, lookDir, upDir;
 };
 
 struct Tiger {

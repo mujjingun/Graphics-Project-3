@@ -73,9 +73,7 @@ static void mouseMove(int x, int y)
 
 static void mouseEvent(int button, int state, int, int)
 {
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-        pScene->mouseClick();
-    }
+    pScene->mouseClick(button, state);
 }
 
 static void mouseEntry(int state)
