@@ -1,7 +1,6 @@
 
 find_package(OpenGL REQUIRED)
 find_package(GLEW 2.0 REQUIRED)
-find_package(GLUT REQUIRED)
 find_package(glm REQUIRED)
 find_package(FreeImage REQUIRED)
 
@@ -19,7 +18,6 @@ target_link_libraries(graphics
     ${FREEIMAGE_LIBRARIES}
     GLEW::GLEW
     ${OPENGL_LIBRARIES}
-    ${GLUT_LIBRARIES}
     ${GLM_LIBRARIES}
 )
 

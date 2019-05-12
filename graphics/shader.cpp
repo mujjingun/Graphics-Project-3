@@ -274,6 +274,17 @@ void Shader::setUniform(const glm::vec4& vec, const char* fmt, ...)
     setUniform(m_uniforms.at(name), vec);
 }
 
+void Shader::setUniform(const glm::mat3 &mat, const char *fmt, ...)
+{
+    char name[256];
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(name, sizeof(name), fmt, args);
+    va_end(args);
+
+    setUniform(m_uniforms.at(name), mat);
+}
+
 void Shader::setUniform(const glm::mat4& mat, const char* fmt, ...)
 {
     char name[256];
@@ -308,6 +319,11 @@ void Shader::setUniform(GLint location, const glm::vec3& vec)
 void Shader::setUniform(GLint location, const glm::vec4& vec)
 {
     glProgramUniform4f(m_id, location, vec.x, vec.y, vec.z, vec.w);
+}
+
+void Shader::setUniform(GLint location, const glm::mat3 &mat)
+{
+    glProgramUniformMatrix3fv(m_id, location, 1, GL_FALSE, glm::value_ptr(mat));
 }
 
 void Shader::setUniform(GLint location, const glm::mat4& mat)

@@ -36,6 +36,7 @@ public:
     PRINTF_LIKE void setUniform(glm::vec2 const& vec, const char* fmt, ...);
     PRINTF_LIKE void setUniform(glm::vec3 const& vec, const char* fmt, ...);
     PRINTF_LIKE void setUniform(glm::vec4 const& vec, const char* fmt, ...);
+    PRINTF_LIKE void setUniform(glm::mat3 const& mat, const char* fmt, ...);
     PRINTF_LIKE void setUniform(glm::mat4 const& mat, const char* fmt, ...);
 
     void setUniform(GLint location, int value);
@@ -43,6 +44,7 @@ public:
     void setUniform(GLint location, glm::vec2 const& vec);
     void setUniform(GLint location, glm::vec3 const& vec);
     void setUniform(GLint location, glm::vec4 const& vec);
+    void setUniform(GLint location, glm::mat3 const& mat);
     void setUniform(GLint location, glm::mat4 const& mat);
 
     void use() const;

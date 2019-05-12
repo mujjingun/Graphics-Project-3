@@ -149,6 +149,6 @@ void main(void) {
 		final_color = mix(FOG_COLOR, shaded_color, fog_factor);
 	}
 	else 
-		final_color = shaded_color;
+        final_color = shaded_color;
 #endif
 }

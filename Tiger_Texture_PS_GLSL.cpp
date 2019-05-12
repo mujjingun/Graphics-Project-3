@@ -9,7 +9,7 @@
 #include <GL/freeglut.h>
 // clang-format on
 
-#include <FreeImage/FreeImage.h>
+#include "FreeImage/FreeImage.h"
 
 #include "My_Shading.h"
 #include "Shaders/LoadShaders.h"
@@ -1971,7 +1971,6 @@ void greetings(char* program_name, char messages[][256], int n_message_lines)
         fprintf(stdout, "%s\n", messages[i]);
     fprintf(stdout, "\n**************************************************************\n\n");
 
-    initialize_glew();
 }
 
 #define N_MESSAGE_LINES 1
@@ -1987,7 +1986,8 @@ int main(int argc, char* argv[])
     glutCreateWindow("Sogang CSE4170 3D Objects");
 
     //greetings(program_name, messages, N_MESSAGE_LINES);
-    //initialize_renderer();
+    initialize_glew();
+    initialize_renderer();
 
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
     glutMainLoop();

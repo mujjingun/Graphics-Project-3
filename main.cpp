@@ -9,16 +9,15 @@
 
 static Scene* pScene;
 
+static void renderScene()
+{
+    pScene->render();
+}
+
 static void timer(int)
 {
     glutPostRedisplay();
-    glutTimerFunc(1000 / 60, timer, 0);
-}
-
-static void renderScene(void)
-{
-    pScene->render();
-    glutSwapBuffers();
+    glutTimerFunc(16, timer, 0);
 }
 
 static void keyboardDown(unsigned char key, int, int)
@@ -183,18 +182,20 @@ int main(int argc, char* argv[])
     glutCreateWindow("Sogang CSE4170 3D Objects");
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 
+    // initialize glew
+    initialize_glew();
+
     // register callbacks
-    glutDisplayFunc(renderScene);
     glutKeyboardFunc(keyboardDown);
     glutKeyboardUpFunc(keyboardUp);
+    glutSpecialFunc(specialKeyboardDown);
+    glutSpecialUpFunc(specialKeyboardUp);
     glutPassiveMotionFunc(mouseMove);
     glutEntryFunc(mouseEntry);
     glutReshapeFunc(reshapeWindow);
     glutMouseFunc(mouseEvent);
+    glutDisplayFunc(renderScene);
     glutTimerFunc(0, timer, 0);
-
-    // initialize glew
-    initialize_glew();
 
     // print opengl debug output
     glEnable(GL_DEBUG_OUTPUT);
@@ -207,6 +208,10 @@ int main(int argc, char* argv[])
     } catch (std::exception& e) {
         std::cerr << "Exception thrown: " << e.what() << std::endl;
     }
+
+    glutExit();
+
+    std::cout << "Exiting..." << std::endl;
 
     return 0;
 }

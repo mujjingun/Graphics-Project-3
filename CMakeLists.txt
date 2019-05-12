@@ -15,12 +15,16 @@ add_subdirectory(graphics)
 add_subdirectory(ecs)
 
 add_executable(graphics3
+    #Tiger_Texture_PS_GLSL.cpp
+    #Shaders/LoadShaders.cpp
     main.cpp
     scene.cpp
     rendersystem.cpp
+    animationsystem.cpp
 )
 
 target_link_libraries(graphics3
     graphics
     ecs
+    ${GLUT_LIBRARIES}
 )

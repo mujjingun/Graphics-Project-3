@@ -27,9 +27,10 @@ public:
     void update(ou::ECSEngine& engine, float deltaTime) override;
 
 private:
-    void init_lights_and_material();
-    void init_flags();
-    void prepare_tiger();
+    void initLightsAndMaterial();
+    void initFlags();
+    void prepareFloor();
+    void prepareTiger();
 
 private:
     ou::Shader m_simpleShader;
@@ -42,8 +43,13 @@ private:
     bool m_flag_texture_mapping;
     bool m_flag_fog;
 
-    std::vector<int> m_tiger_n_triangles;
-    std::vector<int> m_tiger_vertex_offset;
+    ou::VertexBuffer m_floorVbo;
+    ou::VertexArray m_floorVao;
+    ou::Texture m_floorTexture;
+    PhongMaterial m_floorMaterial;
+
+    std::vector<int> m_tigerNVertices;
+    std::vector<int> m_tigerVertexOffset;
     ou::VertexBuffer m_tigerVbo;
     ou::VertexArray m_tigerVao;
     ou::Texture m_tigerTexture;

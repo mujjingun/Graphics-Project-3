@@ -1,7 +1,11 @@
 #include "rendersystem.h"
+#include "components.h"
+#include "ecs/ecsengine.h"
+#include "ecs/entity.h"
 #include "graphics/framebuffer.h"
 
 #include <fstream>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <sstream>
@@ -21,13 +25,14 @@ RenderSystem::RenderSystem()
     m_viewMatrix = glm::lookAt(4.0f / 6.0f * glm::vec3(500.0f, 600.0f, 500.0f),
         glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    init_lights_and_material();
-    init_flags();
+    initLightsAndMaterial();
+    initFlags();
 
-    prepare_tiger();
+    prepareFloor();
+    prepareTiger();
 }
 
-void RenderSystem::init_lights_and_material()
+void RenderSystem::initLightsAndMaterial()
 {
     m_phongShader.setUniform(glm::vec4(0.115f, 0.115f, 0.115f, 1.0f), "u_global_ambient_color");
 
@@ -53,9 +58,25 @@ void RenderSystem::init_lights_and_material()
     m_phongShader.setUniform(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), "u_material.specular_color");
     m_phongShader.setUniform(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), "u_material.emissive_color");
     m_phongShader.setUniform(0.0f, "u_material.specular_exponent"); // [0.0, 128.0]
+
+    // set initial light uniforms
+    m_phongShader.setUniform(true, "u_light[0].light_on");
+    m_phongShader.setUniform(glm::vec4(0.0f, 100.0f, 0.0f, 1.0f), "u_light[0].position");
+    m_phongShader.setUniform(glm::vec4(0.13f, 0.13f, 0.13f, 1.0f), "u_light[0].ambient_color");
+    m_phongShader.setUniform(glm::vec4(0.5f, 0.5f, 0.5f, 1.5f), "u_light[0].diffuse_color");
+    m_phongShader.setUniform(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f), "u_light[0].specular_color");
+
+    m_phongShader.setUniform(true, "u_light[1].light_on");
+    m_phongShader.setUniform(glm::vec4(-200.0f, 500.0f, -200.0f, 1.0f) * m_viewMatrix, "u_light[1].position");
+    m_phongShader.setUniform(glm::vec4(0.152f, 0.152f, 0.152f, 1.0f), "u_light[1].ambient_color");
+    m_phongShader.setUniform(glm::vec4(0.572f, 0.572f, 0.572f, 1.0f), "u_light[1].diffuse_color");
+    m_phongShader.setUniform(glm::vec4(0.772f, 0.772f, 0.772f, 1.0f), "u_light[1].specular_color");
+    m_phongShader.setUniform(glm::vec3(0.0f, -1.0f, 0.0f) * glm::mat3(m_viewMatrix), "u_light[1].spot_direction");
+    m_phongShader.setUniform(20.0f, "u_light[1].spot_cutoff_angle");
+    m_phongShader.setUniform(8.0f, "u_light[1].spot_exponent");
 }
 
-void RenderSystem::init_flags()
+void RenderSystem::initFlags()
 {
     m_flag_tiger_animation = 1;
     m_flag_polygon_fill = 1;
@@ -88,10 +109,65 @@ static std::vector<AttrType> read_geometry(const char* filename)
     return object;
 }
 
-void RenderSystem::prepare_tiger()
+void RenderSystem::prepareFloor()
 {
-    m_tiger_n_triangles.resize(N_TIGER_FRAMES);
-    m_tiger_vertex_offset.resize(N_TIGER_FRAMES);
+    struct FloorAttr {
+        glm::vec3 pos;
+        glm::vec3 normal;
+        glm::vec2 uv;
+    };
+
+    // vertices enumerated counterclockwise
+    const FloorAttr rectangleVertices[6] = {
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+        { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
+        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+        { { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
+    };
+
+    m_floorVbo.setData(rectangleVertices, GL_STATIC_DRAW);
+
+    auto binding = m_floorVao.getBinding(0);
+    binding.bindVertexBuffer(m_floorVbo, 0, sizeof(FloorAttr));
+
+    auto posAttr = m_floorVao.enableVertexAttrib(0);
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, pos));
+    posAttr.setBinding(binding);
+
+    auto normalAttr = m_floorVao.enableVertexAttrib(1);
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, normal));
+    normalAttr.setBinding(binding);
+
+    auto uvAttr = m_floorVao.enableVertexAttrib(2);
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, uv));
+    uvAttr.setBinding(binding);
+
+    m_floorMaterial.ambient = glm::vec4(0.0f, 0.05f, 0.0f, 1.0f);
+    m_floorMaterial.diffuse = glm::vec4(0.2f, 0.5f, 0.2f, 1.0f);
+    m_floorMaterial.specular = glm::vec4(0.24f, 0.5f, 0.24f, 1.0f);
+    m_floorMaterial.specularExponent = 2.5f;
+    m_floorMaterial.emissive = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
+
+    m_floorTexture = ou::Texture(GL_TEXTURE_2D);
+    m_floorTexture.loadFromFile("Data/static_objects/checker_tex.jpg");
+
+    m_floorTexture.generateMipmap();
+
+    m_floorTexture.setMagFilter(GL_NEAREST);
+    m_floorTexture.setMinFilter(GL_NEAREST);
+
+    m_floorTexture.setWrapS(GL_REPEAT);
+    m_floorTexture.setWrapT(GL_REPEAT);
+}
+
+void RenderSystem::prepareTiger()
+{
+    m_tigerNVertices.resize(N_TIGER_FRAMES);
+    m_tigerVertexOffset.resize(N_TIGER_FRAMES);
 
     struct TigerAttr {
         glm::vec3 pos;
@@ -108,15 +184,15 @@ void RenderSystem::prepare_tiger()
 
         auto frame = read_geometry<TigerAttr>(filename.str().c_str());
 
-        m_tiger_n_triangles[i] = frame.size();
+        m_tigerNVertices[i] = frame.size();
 
         // append frame data
         std::copy(frame.begin(), frame.end(), std::back_inserter(buf));
 
         if (i == 0) {
-            m_tiger_vertex_offset[i] = 0;
+            m_tigerVertexOffset[i] = 0;
         } else {
-            m_tiger_vertex_offset[i] = m_tiger_vertex_offset[i - 1] + 3 * m_tiger_n_triangles[i - 1];
+            m_tigerVertexOffset[i] = m_tigerVertexOffset[i - 1] + m_tigerNVertices[i - 1];
         }
     }
 
@@ -129,17 +205,21 @@ void RenderSystem::prepare_tiger()
     posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, pos));
     posAttr.setBinding(binding);
 
-    auto normalAttr = m_tigerVao.enableVertexAttrib(0);
+    auto normalAttr = m_tigerVao.enableVertexAttrib(1);
     normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, normal));
+    normalAttr.setBinding(binding);
 
-    auto uvAttr = m_tigerVao.enableVertexAttrib(0);
+    auto uvAttr = m_tigerVao.enableVertexAttrib(2);
     uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, uv));
+    uvAttr.setBinding(binding);
 
     m_tigerMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
     m_tigerMaterial.diffuse = glm::vec4(0.75164f, 0.60648f, 0.22648f, 1.0f);
     m_tigerMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
     m_tigerMaterial.specularExponent = 51.2f;
     m_tigerMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+
+    glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
 
     m_tigerTexture = ou::Texture(GL_TEXTURE_2D);
     m_tigerTexture.loadFromFile("Data/dynamic_objects/tiger/tiger_tex2.jpg");
@@ -153,7 +233,16 @@ void RenderSystem::prepare_tiger()
     m_tigerTexture.setWrapT(GL_REPEAT);
 }
 
-void RenderSystem::update(ou::ECSEngine& engine, float deltaTime)
+static void setMaterial(ou::Shader& shader, PhongMaterial const& material)
+{
+    shader.setUniform(material.ambient, "u_material.ambient_color");
+    shader.setUniform(material.diffuse, "u_material.diffuse_color");
+    shader.setUniform(material.emissive, "u_material.emissive_color");
+    shader.setUniform(material.specular, "u_material.specular_color");
+    shader.setUniform(material.specularExponent, "u_material.specular_exponent");
+}
+
+void RenderSystem::update(ou::ECSEngine& engine, float)
 {
     // Clear framebuffer
     float clearColor[] = { 0, 0, 0, 0 };
@@ -161,4 +250,59 @@ void RenderSystem::update(ou::ECSEngine& engine, float deltaTime)
 
     float clearDepth[] = { 1 };
     ou::FrameBuffer::defaultBuffer().clear(GL_DEPTH, 0, clearDepth);
+
+    SceneState const& scene = engine.getOne<SceneState>();
+    float aspectRatio = static_cast<float>(scene.windowSize.x) / scene.windowSize.y;
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), aspectRatio, 100.0f, 20000.0f);
+
+    glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
+    glm::mat3 modelViewMatrixInvTrans;
+
+    // draw the floor
+    modelViewMatrix = glm::translate(m_viewMatrix, glm::vec3(-500.0f, 0.0f, 500.0f));
+    modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(1000.0f, 1000.0f, 1000.0f));
+    modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+    modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+
+    m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+    m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+    m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+    m_phongShader.setUniform(0, "u_base_texture");
+
+    setMaterial(m_phongShader, m_floorMaterial);
+
+    glFrontFace(GL_CCW);
+    m_phongShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    m_floorTexture.use(GL_TEXTURE_2D);
+    m_floorVao.use();
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // draw tigers
+    for (ou::Entity const& ent : engine.iterate<Tiger>()) {
+        Tiger const& tiger = ent.get<Tiger>();
+
+        modelViewMatrix = glm::rotate(m_viewMatrix, -tiger.rotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+        modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(200.0f, 0.0f, 0.0f));
+        modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+        m_phongShader.setUniform(0, "u_base_texture");
+
+        setMaterial(m_phongShader, m_tigerMaterial);
+
+        glFrontFace(GL_CW);
+        m_phongShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        m_tigerTexture.use(GL_TEXTURE_2D);
+        m_tigerVao.use();
+        glDrawArrays(GL_TRIANGLES, m_tigerVertexOffset[tiger.currFrame], m_tigerNVertices[tiger.currFrame]);
+    }
 }
