@@ -3,8 +3,8 @@
 #include "components.h"
 #include "controlsystem.h"
 #include "ecs/entity.h"
-#include "rendersystem.h"
 #include "input.h"
+#include "rendersystem.h"
 
 // clang-format off
 #include <GL/glew.h>
@@ -22,6 +22,8 @@ Scene::Scene()
 
     m_engine.addEntity(ou::Entity{ state, Input{} });
     m_engine.addEntity(ou::Entity{ Tiger{} });
+    m_engine.addEntity(ou::Entity{ Tiger{ 0, 3.0f } });
+    m_engine.addEntity(ou::Entity{ Car{} });
 
     m_engine.addSystem(std::make_unique<AnimationSystem>());
     m_engine.addSystem(std::make_unique<ControlSystem>());

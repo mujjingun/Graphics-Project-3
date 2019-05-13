@@ -21,8 +21,8 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
 
     input.update(deltaTime, scene.windowSize);
 
-    // rotate screen
-    glm::dvec3 right = glm::cross(scene.upDir, scene.lookDir);
+    // rotate camera
+    glm::dvec3 right = glm::normalize(glm::cross(scene.upDir, scene.lookDir));
 
     glm::dvec2 angle = glm::dvec2(input.mouseDelta()) * glm::radians(0.3);
     float alt = glm::angle(scene.lookDir, scene.upDir);
@@ -41,4 +41,28 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
         * glm::dvec4(scene.lookDir, 1.0);
 
     scene.lookDir = glm::normalize(scene.lookDir);
+
+    // move camera
+    glm::vec3 moveDir{};
+    glm::vec2 nLookDir = glm::normalize(glm::vec2(scene.lookDir.x, scene.lookDir.z));
+
+    if (input.isKeyPressed('a')) {
+        moveDir += right;
+    }
+    if (input.isKeyPressed('d')) {
+        moveDir -= right;
+    }
+    if (input.isKeyPressed('s')) {
+        moveDir.x -= nLookDir.x;
+        moveDir.z -= nLookDir.y;
+    }
+    if (input.isKeyPressed('w')) {
+        moveDir.x += nLookDir.x;
+        moveDir.z += nLookDir.y;
+    }
+
+    if (glm::length(moveDir) > 0) {
+        moveDir = glm::normalize(moveDir) * 600.0f * deltaTime;
+        scene.eyePos += moveDir;
+    }
 }

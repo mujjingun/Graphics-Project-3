@@ -1,6 +1,7 @@
 #ifndef COMPONENTS_H
 #define COMPONENTS_H
 
+#include <deque>
 #include <glm/glm.hpp>
 
 struct SceneState {
@@ -10,7 +11,20 @@ struct SceneState {
 
 struct Tiger {
     int currFrame = 0;
-    float rotationAngle = 0.0f;
+    float elapsedTime = 0;
+    glm::vec3 pos{};
+    glm::vec3 lastPos{};
+};
+
+struct Car {
+    float elapsedTime = 1;
+    float interval;
+    float wheelAngle = 0;
+
+    glm::vec2 pos{};
+    std::deque<glm::vec2> dests{};
+
+    float angle{}, wheelRot{};
 };
 
 struct Light {
