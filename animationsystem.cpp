@@ -90,8 +90,8 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 
             glm::vec2 diff = car.dests[1] - car.dests[2];
             car.dests[0] = car.dests[2];
-            car.dests[1] = car.dests[0] - diff;
-            car.dests[2] = pickCoord() * 500.f;
+            car.dests[1] = car.dests[0] - glm::normalize(diff) * 400.0f;
+            car.dests[2] = glm::clamp(car.dests[0] + pickCoord() * 100.f, -500.0f, 500.0f);
 
             car.interval = bezierLength(car.dests[0], car.dests[1], car.dests[2]) / carSpeed;
         }
@@ -112,6 +112,6 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 
         const float wheelDistance = 40.0f;
         car.wheelRot = glm::asin(wheelDistance / (2.0f * glm::abs(radius))) * glm::sign(radius);
-        car.wheelRot *= 10.0f;
+        car.wheelRot *= 15.0f;
     }
 }

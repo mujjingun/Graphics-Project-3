@@ -34,6 +34,8 @@ private:
     void prepareTiger();
     void prepareCar();
 
+    void render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov);
+
 private:
     ou::Shader m_simpleShader;
     ou::Shader m_phongShader;

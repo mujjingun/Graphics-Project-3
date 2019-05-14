@@ -58,6 +58,11 @@ void Input::mouseLeft()
 {
 }
 
+void Input::mouseScroll(int delta)
+{
+    m_mouseWheelDelta += delta;
+}
+
 void Input::update(float delta, glm::ivec2 windowSize)
 {
     m_destLogicalMousePos += m_realMousePos - m_lastRealMousePos;
@@ -80,6 +85,16 @@ void Input::update(float delta, glm::ivec2 windowSize)
     }
 }
 
+void Input::afterUpdate()
+{
+    m_mouseWheelDelta = 0;
+}
+
+bool Input::isMouseDown() const
+{
+    return m_leftDown;
+}
+
 bool Input::isKeyPressed(unsigned char key) const
 {
     auto it = m_keyStates.find(key);
@@ -92,4 +107,9 @@ bool Input::isKeyPressed(unsigned char key) const
 glm::dvec2 Input::mouseDelta() const
 {
     return m_smoothedMouseDelta;
+}
+
+int Input::scrollDelta() const
+{
+    return m_mouseWheelDelta;
 }

@@ -4,9 +4,17 @@
 #include <deque>
 #include <glm/glm.hpp>
 
+struct Camera {
+    glm::vec3 eyePos, lookDir, upDir;
+    float fov = 45.0f;
+};
+
 struct SceneState {
     glm::ivec2 windowSize;
-    glm::vec3 eyePos, lookDir, upDir;
+    Camera primary, second;
+    bool carViewportOn = false;
+    bool tigerViewportOn = false;
+    bool secondCamOn = false;
 };
 
 struct Tiger {
@@ -14,6 +22,9 @@ struct Tiger {
     float elapsedTime = 0;
     glm::vec3 pos{};
     glm::vec3 lastPos{};
+};
+
+struct TigerCam {
 };
 
 struct Car {
@@ -25,6 +36,9 @@ struct Car {
     std::deque<glm::vec2> dests{};
 
     float angle{}, wheelRot{};
+};
+
+struct CarCam {
 };
 
 struct Light {

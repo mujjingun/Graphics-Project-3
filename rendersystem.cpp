@@ -21,7 +21,7 @@ RenderSystem::RenderSystem()
     , m_phongShader("Shaders/Phong_Tx.vert", "Shaders/Phong_Tx.frag")
 {
     glEnable(GL_MULTISAMPLE);
-
+    glEnable(GL_SCISSOR_TEST);
     glEnable(GL_DEPTH_TEST);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -158,12 +158,12 @@ void RenderSystem::prepareFloor()
     m_floorMaterial.emissive = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     m_floorTexture = ou::Texture(GL_TEXTURE_2D);
-    m_floorTexture.loadFromFile("Data/static_objects/grass_tex.jpg");
+    m_floorTexture.loadFromFile("Data/static_objects/checker_tex.jpg");
 
     m_floorTexture.generateMipmap();
 
-    m_floorTexture.setMagFilter(GL_NEAREST);
-    m_floorTexture.setMinFilter(GL_NEAREST);
+    m_floorTexture.setMagFilter(GL_LINEAR);
+    m_floorTexture.setMinFilter(GL_LINEAR);
 
     m_floorTexture.setWrapS(GL_REPEAT);
     m_floorTexture.setWrapT(GL_REPEAT);
@@ -293,20 +293,13 @@ static void setMaterial(ou::Shader& shader, PhongMaterial const& material)
     shader.setUniform(material.specularExponent, "u_material.specular_exponent");
 }
 
-void RenderSystem::update(ou::ECSEngine& engine, float)
+void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov)
 {
-    // Clear framebuffer
-    float clearColor[] = { 0, 0, 0, 0 };
-    ou::FrameBuffer::defaultBuffer().clear(GL_COLOR, 0, clearColor);
-
-    float clearDepth[] = { 1 };
-    ou::FrameBuffer::defaultBuffer().clear(GL_DEPTH, 0, clearDepth);
-
     SceneState const& scene = engine.getOne<SceneState>();
     float aspectRatio = static_cast<float>(scene.windowSize.x) / scene.windowSize.y;
-    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), aspectRatio, 100.0f, 20000.0f);
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, 100.0f, 20000.0f);
 
-    glm::mat4 viewMatrix = glm::lookAt(scene.eyePos, scene.eyePos + scene.lookDir, scene.upDir);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // set initial light uniforms
     m_phongShader.setUniform(true, "u_light[0].light_on");
@@ -329,8 +322,8 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
         glm::mat3 modelViewMatrixInvTrans;
 
-        modelViewMatrix = glm::translate(viewMatrix, glm::vec3(-1000.0f, 0.0f, 1000.0f));
-        modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(2000.0f, 2000.0f, 2000.0f));
+        modelViewMatrix = glm::translate(viewMatrix, glm::vec3(-500.0f, 0.0f, 500.0f));
+        modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(1000.0f, 1000.0f, 1000.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
         modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
@@ -452,6 +445,22 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         modelViewProjectionMatrix = projectionMatrix * viewMatrix * wheelModelMatrix;
         drawWheelAndNut(modelViewProjectionMatrix, -1.0f);
     }
+
+    // draw teapot
+    {
+        glm::mat4 modelMatrix(1.0f);
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(20.0f));
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 1.6f, 0));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+
+        glm::mat4 modelViewProjectionMatrix = projectionMatrix * viewMatrix * modelMatrix;
+        m_simpleShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+        m_simpleShader.use();
+        m_teapotVao.use();
+        m_simpleShader.setUniform(glm::vec3(0.998f, 1.000f, 0.831f), "u_primitive_color");
+        glDrawArrays(GL_TRIANGLES, 0, m_teapotNVertices);
+    }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // draw axes
@@ -472,5 +481,62 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         glDrawArrays(GL_LINES, 2, 2);
         m_simpleShader.setUniform(glm::vec3(0, 0, 1), "u_primitive_color");
         glDrawArrays(GL_LINES, 4, 2);
+    }
+}
+
+void RenderSystem::update(ou::ECSEngine& engine, float)
+{
+    SceneState const& scene = engine.getOne<SceneState>();
+
+    {
+        glm::mat4 viewMatrix = glm::lookAt(scene.primary.eyePos,
+            scene.primary.eyePos + scene.primary.lookDir, scene.primary.upDir);
+
+        glViewport(0, 0, scene.windowSize.x, scene.windowSize.y);
+        glScissor(0, 0, scene.windowSize.x, scene.windowSize.y);
+        render(engine, viewMatrix, scene.primary.fov);
+    }
+
+    if (scene.secondCamOn) {
+        glm::mat4 viewMatrix = glm::lookAt(scene.second.eyePos,
+            scene.second.eyePos + scene.second.lookDir, scene.second.upDir);
+
+        glViewport(0, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
+        glScissor(0, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
+        render(engine, viewMatrix, scene.second.fov);
+    }
+
+    if (scene.carViewportOn) {
+        glViewport(scene.windowSize.x / 2, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
+        glScissor(scene.windowSize.x / 2, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
+
+        Car const& car = engine.getOneEnt<CarCam>().get<Car>();
+
+        glm::mat3 rot = glm::rotate(glm::mat4(1.0f), car.angle, glm::vec3(0, 1, 0));
+
+        glm::vec3 pos = glm::vec3(car.pos.x, 80.0f, car.pos.y);
+        glm::vec3 lookDir = rot * glm::vec3(0, 0, 1);
+
+        glm::mat4 viewMatrix = glm::lookAt(pos - lookDir * 80.0f, pos + lookDir, glm::vec3(0, 1, 0));
+
+        render(engine, viewMatrix, 45.0f);
+    }
+
+    if (scene.tigerViewportOn) {
+        glViewport(scene.windowSize.x / 2, scene.windowSize.y / 2, scene.windowSize.x / 2, scene.windowSize.y / 2);
+        glScissor(scene.windowSize.x / 2, scene.windowSize.y / 2, scene.windowSize.x / 2, scene.windowSize.y / 2);
+
+        Tiger const& tiger = engine.getOneEnt<TigerCam>().get<Tiger>();
+
+        glm::vec3 dir = glm::normalize(tiger.pos - tiger.lastPos);
+        float angle = std::atan2(dir.x, dir.z);
+
+        glm::mat3 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
+        glm::vec3 pos = tiger.pos + rot * glm::vec3(0, 80.0f, 50.0f);
+        glm::vec3 lookDir = rot * glm::vec3(0, -0.1f, 1);
+
+        glm::mat4 viewMatrix = glm::lookAt(pos, pos + lookDir, glm::vec3(0, 1, 0));
+
+        render(engine, viewMatrix, 45.0f);
     }
 }

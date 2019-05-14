@@ -45,6 +45,10 @@ static void specialKeyboardDown(int key, int, int)
     case GLUT_KEY_DOWN:
         pScene->keyDown('s');
         break;
+    case GLUT_KEY_SHIFT_L:
+    case GLUT_KEY_SHIFT_R:
+        pScene->keyDown('+');
+        break;
     }
 }
 
@@ -189,6 +193,7 @@ int main(int argc, char* argv[])
     glutSpecialFunc(specialKeyboardDown);
     glutSpecialUpFunc(specialKeyboardUp);
     glutPassiveMotionFunc(mouseMove);
+    glutMotionFunc(mouseMove);
     glutEntryFunc(mouseEntry);
     glutReshapeFunc(reshapeWindow);
     glutMouseFunc(mouseEvent);

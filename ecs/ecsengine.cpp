@@ -67,6 +67,9 @@ void ECSEngine::update(float deltaTime)
     for (auto const& pair : m_systems) {
         pair.second->update(*this, deltaTime);
     }
+    for (auto const& pair : m_systems) {
+        pair.second->afterUpdate(*this);
+    }
 }
 
 ECSEngine::Range::Range(ECSEngine* engine, std::vector<std::type_index>&& keys)
