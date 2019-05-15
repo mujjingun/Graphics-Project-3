@@ -289,7 +289,7 @@ void RenderSystem::prepareCar()
 {
     m_carBodyNVertices = make_geometry_text(m_carBodyVao, m_carBodyVbo, "Data/car_body_triangles_v.txt");
 
-    m_carBodyMaterial.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    m_carBodyMaterial.ambient = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
     m_carBodyMaterial.diffuse = glm::vec4(0.498f, 1.000f, 0.831f, 1.0f);
     m_carBodyMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
     m_carBodyMaterial.specularExponent = 91.2f;
@@ -297,8 +297,8 @@ void RenderSystem::prepareCar()
 
     m_carWheelNVertices = make_geometry_text(m_carWheelVao, m_carWheelVbo, "Data/car_wheel_triangles_v.txt");
 
-    m_carWheelMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
-    m_carWheelMaterial.diffuse = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    m_carWheelMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.9745f, 1.0f);
+    m_carWheelMaterial.diffuse = glm::vec4(0.1f, 0.1f, 0.9f, 1.0f);
     m_carWheelMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
     m_carWheelMaterial.specularExponent = 91.2f;
     m_carWheelMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
@@ -476,6 +476,14 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    if (scene.wireframeOn) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glLineWidth(2);
+    }
+    else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
     // set initial light uniforms
     m_phongShader.setUniform(true, "u_light[0].light_on");
     m_phongShader.setUniform(glm::vec4(0.0f, 100.0f, 0.0f, 1.0f), "u_light[0].position");
@@ -588,7 +596,8 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         glm::mat3 modelViewMatrixInvTrans;
 
         modelViewMatrix = viewMatrix;
-        modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(80.0f, 0, 0));
+        modelViewMatrix = glm::translate(modelViewMatrix, spider.pos);
+        modelViewMatrix = glm::rotate(modelViewMatrix, spider.angle, glm::vec3(0, 1, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(80.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(180.0f), glm::vec3(0, 0, 1));
 
@@ -774,7 +783,6 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         m_simpleShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         glFrontFace(GL_CCW);
-        glLineWidth(2.0f);
         m_simpleShader.use();
         m_axesVao.use();
         m_simpleShader.setUniform(glm::vec3(1, 0, 0), "u_primitive_color");

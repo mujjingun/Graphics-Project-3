@@ -49,10 +49,9 @@ static float bezierCurvature(glm::vec2 p0, glm::vec2 p1, glm::vec2 p2, float t)
 
 void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 {
-    float period = 0.2f;
     for (ou::Entity& ent : engine.iterate<Tiger>()) {
         Tiger& tiger = ent.get<Tiger>();
-        tiger.currFrame = glm::fract(tiger.elapsedTime / period) * 12;
+        tiger.currFrame = glm::fract(tiger.elapsedTime / 0.2f) * 12;
         tiger.elapsedTime += deltaTime;
         tiger.lastPos = tiger.pos;
 
@@ -64,14 +63,8 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 
     for (ou::Entity& ent : engine.iterate<Wolf>()) {
         Wolf& wolf = ent.get<Wolf>();
-        wolf.currFrame = glm::fract(wolf.elapsedTime / period) * 17;
+        wolf.currFrame = glm::fract(wolf.elapsedTime / 0.5f) * 17;
         wolf.elapsedTime += deltaTime;
-    }
-
-    for (ou::Entity& ent : engine.iterate<Spider>()) {
-        Spider& spider = ent.get<Spider>();
-        spider.currFrame = glm::fract(spider.elapsedTime / period) * 16;
-        spider.elapsedTime += deltaTime;
     }
 
     float carSpeed = 300.0f;
@@ -133,10 +126,16 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
         car.rearRot = std::atan2(rearDir.x, rearDir.y) - car.angle;
     }
 
-    Input const& input = engine.getOne<Input>();
+    Input& input = engine.getOne<Input>();
     SceneState const& scene = engine.getOne<SceneState>();
-    glm::ivec2 clickPos;
-    if (!scene.secondCamOn && input.isMouseClicked(clickPos)) {
+
+    auto unproject = [&](glm::vec3& point) {
+        if (!input.isMouseInScreen()) {
+            return false;
+        }
+
+        glm::ivec2 clickPos = input.mousePos();
+
         glm::vec2 normPos = glm::vec2(clickPos) / glm::vec2(scene.windowSize) * 2.0f - 1.0f;
 
         float aspectRatio = static_cast<float>(scene.windowSize.x) / scene.windowSize.y;
@@ -153,16 +152,80 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 
         float distance;
         if (glm::intersectRayPlane(cam.eyePos, dir, glm::vec3(0), glm::vec3(0, 1, 0), distance)) {
-            glm::vec3 intersectPoint = cam.eyePos + dir * distance;
+            point = cam.eyePos + dir * distance;
+            return true;
+        };
 
-            Teapot teapot;
-            teapot.pos = intersectPoint;
-            engine.addEntity(ou::Entity{ teapot });
-        }
+        return false;
+    };
+
+    glm::vec3 mouseUnprojPos{};
+    bool mouseOnFloor = unproject(mouseUnprojPos);
+    if (mouseOnFloor && !scene.secondCamOn && input.isKeyPressed('z') && input.isMouseClicked()) {
+        Teapot teapot;
+        teapot.pos = mouseUnprojPos;
+        engine.addEntity(ou::Entity{ teapot });
+    }
+
+    bool jump = false;
+    if (input.isKeyPressed('u')) {
+        input.keyUp('u');
+        jump = true;
     }
 
     for (ou::Entity& ent : engine.iterate<Teapot>()) {
         Teapot& teapot = ent.get<Teapot>();
-        teapot.angle += glm::radians(180.0f) * deltaTime;
+
+        if (input.isKeyPressed('j')) {
+            teapot.angle += glm::radians(360.0f) * deltaTime;
+        }
+
+        teapot.pos += teapot.vel * deltaTime;
+        teapot.vel += teapot.acc * deltaTime;
+
+        float bounce = 0.7f;
+        float friction = 0.7f;
+
+        if (teapot.pos.y < 0) {
+            teapot.pos.y = 0;
+            teapot.vel.y *= -bounce;
+            teapot.vel.x *= friction;
+            teapot.vel.z *= friction;
+        }
+
+        if (teapot.pos.y > 500.0f) {
+            teapot.pos.y = 500.0f;
+            teapot.vel.y *= -bounce;
+        }
+
+        if (teapot.pos.x < -500.0f || teapot.pos.x > 500.0f) {
+            teapot.pos.x = glm::clamp(teapot.pos.x, -500.0f, 500.0f);
+            teapot.vel.x *= -bounce;
+        }
+        if (teapot.pos.z < -500.0f || teapot.pos.z > 500.0f) {
+            teapot.pos.z = glm::clamp(teapot.pos.z, -500.0f, 500.0f);
+            teapot.vel.z *= -bounce;
+        }
+
+        if (jump) {
+            std::uniform_real_distribution<float> dist(-1000.0f, 1000.0f);
+            teapot.vel += glm::vec3(dist(engine.rand()), 1000.0f, dist(engine.rand()));
+        }
+    }
+
+    for (ou::Entity& ent : engine.iterate<Spider>()) {
+        Spider& spider = ent.get<Spider>();
+
+        if (mouseOnFloor) {
+            glm::vec3 diff = mouseUnprojPos - spider.pos;
+            glm::vec3 dir = glm::normalize(diff);
+            spider.angle = std::atan2(dir.x, dir.z);
+            if (glm::length(diff) > 100.0f) {
+                spider.pos += dir * 100.0f * deltaTime;
+                spider.pos = glm::clamp(spider.pos, -500.0f, 500.0f);
+                spider.currFrame = glm::fract(spider.elapsedTime / 0.5f) * 16;
+                spider.elapsedTime += deltaTime;
+            }
+        }
     }
 }

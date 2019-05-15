@@ -89,6 +89,9 @@ static void mouseEntry(int state)
     if (state == GLUT_ENTERED) {
         pScene->mouseEnter();
     }
+    else if (state == GLUT_LEFT) {
+        pScene->mouseLeft();
+    }
 }
 
 static void reshapeWindow(int width, int height)

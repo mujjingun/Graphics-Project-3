@@ -18,9 +18,6 @@ Scene::Scene()
     , m_lastFrame{ std::chrono::system_clock::now() }
 {
     SceneState state;
-    state.primary.eyePos = 4.0f / 6.0f * glm::vec3(500.0f, 600.0f, 500.0f);
-    state.primary.lookDir = glm::normalize(-state.primary.eyePos);
-    state.primary.upDir = glm::vec3(0.0f, 1.0f, 0.0f);
     state.second.eyePos = glm::vec3(200, 110, 0);
     state.second.lookDir = glm::vec3(-1, 0, 0);
     state.second.upDir = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -33,7 +30,7 @@ Scene::Scene()
     m_engine.addEntity(ou::Entity{ Car{} });
     m_engine.addEntity(ou::Entity{ Teapot{ glm::vec3(-300.0f, 0, -200.f) } });
     m_engine.addEntity(ou::Entity{ Wolf{} });
-    m_engine.addEntity(ou::Entity{ Spider{} });
+    m_engine.addEntity(ou::Entity{ Spider{ glm::vec3(80.0f, 0, 0) } });
 
     m_engine.addSystem(std::make_unique<AnimationSystem>());
     m_engine.addSystem(std::make_unique<ControlSystem>(), 8);
@@ -71,6 +68,11 @@ void Scene::mouseMove(int x, int y)
 void Scene::mouseEnter()
 {
     m_engine.getOne<Input>().mouseEnter();
+}
+
+void Scene::mouseLeft()
+{
+    m_engine.getOne<Input>().mouseLeft();
 }
 
 void Scene::keyDown(unsigned char key)

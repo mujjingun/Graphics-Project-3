@@ -13,6 +13,7 @@ public:
     void mouseClick(int button, int event);
     void mouseMove(int x, int y);
     void mouseEnter();
+    void mouseLeft();
 
     void keyDown(unsigned char key);
     void keyUp(unsigned char key);

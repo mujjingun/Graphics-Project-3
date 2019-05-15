@@ -24,7 +24,10 @@ public:
     bool isMouseDown() const;
     bool isKeyPressed(unsigned char key) const;
 
-    bool isMouseClicked(glm::ivec2& pos) const;
+    bool isMouseClicked() const;
+
+    bool isMouseInScreen() const;
+    glm::ivec2 mousePos() const;
 
     glm::dvec2 mouseDelta() const;
     int scrollDelta() const;
@@ -41,6 +44,7 @@ private:
     glm::dvec2 m_smoothedMouseDelta{};
 
     bool m_mouseClicked = false;
+    bool m_mouseInScreen = false;
 
     bool m_mouseInvalidated = false;
     bool m_leftDown = false;

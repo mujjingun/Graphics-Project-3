@@ -57,10 +57,12 @@ void Input::mouseMove(int x, int y)
 void Input::mouseEnter()
 {
     m_mouseInvalidated = true;
+    m_mouseInScreen = true;
 }
 
 void Input::mouseLeft()
 {
+    m_mouseInScreen = false;
 }
 
 void Input::mouseScroll(int delta)
@@ -110,13 +112,19 @@ bool Input::isKeyPressed(unsigned char key) const
     return false;
 }
 
-bool Input::isMouseClicked(glm::ivec2 &pos) const
+bool Input::isMouseClicked() const
 {
-    if (m_mouseClicked) {
-        pos = m_realMousePos;
-        return true;
-    }
-    return false;
+    return m_mouseClicked;
+}
+
+bool Input::isMouseInScreen() const
+{
+    return m_mouseInScreen;
+}
+
+glm::ivec2 Input::mousePos() const
+{
+    return m_realMousePos;
 }
 
 glm::dvec2 Input::mouseDelta() const

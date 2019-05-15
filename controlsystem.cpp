@@ -86,27 +86,44 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
             cam.fov = glm::clamp(cam.fov, 1.0f, 120.0f);
         }
 
-        glm::vec3 right = glm::normalize(glm::cross(cam.upDir, cam.lookDir));
-
         float angle = glm::radians(11.25f);
         if (input.isKeyPressed('a')) {
             input.keyUp('a');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0)));
+            scene.destLon += angle;
         }
         if (input.isKeyPressed('d')) {
             input.keyUp('d');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle, glm::vec3(0, 1, 0)));
+            scene.destLon -= angle;
         }
         if (input.isKeyPressed('w')) {
             input.keyUp('w');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle, right));
+            scene.destLat -= angle;
         }
         if (input.isKeyPressed('s')) {
             input.keyUp('s');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle, right));
+            scene.destLat += angle;
         }
-        cam.lookDir = glm::normalize(-cam.eyePos);
+
+        if (scene.destLat <= 0) {
+            scene.destLat = angle;
+        }
+        if (scene.destLat >= glm::radians(180.0f)) {
+            scene.destLat = glm::radians(180.0f) - angle;
+        }
     }
+
+    float smoothing = 1 - glm::exp(-float(deltaTime) * 15.0);
+    scene.lat = glm::mix(scene.lat, scene.destLat, smoothing);
+    scene.lon = glm::mix(scene.lon, scene.destLon, smoothing);
+
+    scene.primary.eyePos = 1000.0f
+        * glm::vec3(
+              glm::cos(scene.lon) * glm::sin(scene.lat),
+              glm::cos(scene.lat),
+              glm::sin(scene.lon) * glm::sin(scene.lat));
+
+    scene.primary.lookDir = glm::normalize(-scene.primary.eyePos);
+    scene.primary.upDir = glm::vec3(0, 1, 0);
 
     // secondary camera
     if (input.isKeyPressed('v')) {
@@ -124,6 +141,12 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
     if (input.isKeyPressed('t')) {
         input.keyUp('t');
         scene.tigerViewportOn = !scene.tigerViewportOn;
+    }
+
+    // toggle wireframe
+    if (input.isKeyPressed('1')) {
+        input.keyUp('1');
+        scene.wireframeOn = !scene.wireframeOn;
     }
 }
 
