@@ -21,13 +21,19 @@ Scene::Scene()
     state.primary.eyePos = 4.0f / 6.0f * glm::vec3(500.0f, 600.0f, 500.0f);
     state.primary.lookDir = glm::normalize(-state.primary.eyePos);
     state.primary.upDir = glm::vec3(0.0f, 1.0f, 0.0f);
-    state.second = state.primary;
+    state.second.eyePos = glm::vec3(200, 110, 0);
+    state.second.lookDir = glm::vec3(-1, 0, 0);
+    state.second.upDir = glm::vec3(0.0f, 1.0f, 0.0f);
+    state.second.fov = 120.0f;
 
     m_engine.addEntity(ou::Entity{ state, Input{} });
     m_engine.addEntity(ou::Entity{ Tiger{} });
     m_engine.addEntity(ou::Entity{ Tiger{ 0, 3.0f }, TigerCam{} });
     m_engine.addEntity(ou::Entity{ Car{}, CarCam{} });
     m_engine.addEntity(ou::Entity{ Car{} });
+    m_engine.addEntity(ou::Entity{ Teapot{ glm::vec3(-300.0f, 0, -200.f) } });
+    m_engine.addEntity(ou::Entity{ Wolf{} });
+    m_engine.addEntity(ou::Entity{ Spider{} });
 
     m_engine.addSystem(std::make_unique<AnimationSystem>());
     m_engine.addSystem(std::make_unique<ControlSystem>(), 8);
@@ -50,11 +56,9 @@ void Scene::mouseClick(int button, int event)
 {
     if (button == GLUT_LEFT_BUTTON || button == GLUT_RIGHT_BUTTON) {
         m_engine.getOne<Input>().mouseClick(button, event);
-    }
-    else if (button == 3) {
+    } else if (button == 3) {
         m_engine.getOne<Input>().mouseScroll(-1);
-    }
-    else if (button == 4) {
+    } else if (button == 4) {
         m_engine.getOne<Input>().mouseScroll(1);
     }
 }

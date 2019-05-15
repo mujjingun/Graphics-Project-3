@@ -67,6 +67,10 @@ static void specialKeyboardUp(int key, int, int)
     case GLUT_KEY_DOWN:
         pScene->keyUp('s');
         break;
+    case GLUT_KEY_SHIFT_L:
+    case GLUT_KEY_SHIFT_R:
+        pScene->keyUp('+');
+        break;
     }
 }
 

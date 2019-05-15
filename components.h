@@ -24,6 +24,21 @@ struct Tiger {
     glm::vec3 lastPos{};
 };
 
+struct Wolf {
+    int currFrame = 0;
+    float elapsedTime = 0;
+};
+
+struct Spider {
+    int currFrame = 0;
+    float elapsedTime = 0;
+};
+
+struct Teapot {
+    glm::vec3 pos{};
+    float angle = 0;
+};
+
 struct TigerCam {
 };
 
@@ -32,10 +47,10 @@ struct Car {
     float interval;
     float wheelAngle = 0;
 
-    glm::vec2 pos{};
+    glm::vec2 pos{}, dir{};
     std::deque<glm::vec2> dests{};
 
-    float angle{}, wheelRot{};
+    float angle{}, wheelRot{}, rearRot{};
 };
 
 struct CarCam {

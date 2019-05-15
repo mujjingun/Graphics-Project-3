@@ -5,6 +5,7 @@
 #include "graphics/framebuffer.h"
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -15,6 +16,8 @@
 
 static const int NUMBER_OF_LIGHT_SUPPORTED = 4;
 static const int N_TIGER_FRAMES = 12;
+static const int N_WOLF_FRAMES = 17;
+static const int N_SPIDER_FRAMES = 16;
 
 RenderSystem::RenderSystem()
     : m_simpleShader("Shaders/simple.vert", "Shaders/simple.frag")
@@ -32,6 +35,9 @@ RenderSystem::RenderSystem()
     prepareFloor();
     prepareTiger();
     prepareCar();
+    prepareIronman();
+    prepareWolf();
+    prepareSpider();
 }
 
 void RenderSystem::initLightsAndMaterial()
@@ -64,13 +70,8 @@ void RenderSystem::initLightsAndMaterial()
 
 void RenderSystem::initFlags()
 {
-    m_flag_tiger_animation = 1;
-    m_flag_polygon_fill = 1;
-    m_flag_texture_mapping = 1;
-    m_flag_fog = 0;
-
-    m_phongShader.setUniform(m_flag_fog, "u_flag_fog");
-    m_phongShader.setUniform(m_flag_texture_mapping, "u_flag_texture_mapping");
+    m_phongShader.setUniform(0, "u_flag_fog");
+    m_phongShader.setUniform(1, "u_flag_texture_mapping");
 }
 
 void RenderSystem::prepareAxes()
@@ -94,8 +95,13 @@ void RenderSystem::prepareAxes()
     posAttr.setBinding(binding);
 }
 
-template <typename AttrType>
-static std::vector<AttrType> read_geometry(const char* filename)
+struct VNTAttr {
+    glm::vec3 pos;
+    glm::vec3 normal;
+    glm::vec2 uv;
+};
+
+static std::vector<VNTAttr> read_geometry(const char* filename)
 {
     std::cout << "Reading geometry from the geometry file " << filename << "...\n";
 
@@ -108,8 +114,8 @@ static std::vector<AttrType> read_geometry(const char* filename)
     int n_triangles;
     file.read(reinterpret_cast<char*>(&n_triangles), sizeof(int));
 
-    std::vector<AttrType> object(n_triangles * 3);
-    file.read(reinterpret_cast<char*>(object.data()), sizeof(AttrType) * object.size());
+    std::vector<VNTAttr> object(n_triangles * 3);
+    file.read(reinterpret_cast<char*>(object.data()), sizeof(VNTAttr) * object.size());
 
     std::cout << "Read " << n_triangles << " primitives successfully.\n\n";
 
@@ -118,14 +124,8 @@ static std::vector<AttrType> read_geometry(const char* filename)
 
 void RenderSystem::prepareFloor()
 {
-    struct FloorAttr {
-        glm::vec3 pos;
-        glm::vec3 normal;
-        glm::vec2 uv;
-    };
-
     // vertices enumerated counterclockwise
-    const FloorAttr rectangleVertices[6] = {
+    const VNTAttr rectangleVertices[6] = {
         { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
         { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
         { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
@@ -137,18 +137,18 @@ void RenderSystem::prepareFloor()
     m_floorVbo.setData(rectangleVertices, GL_STATIC_DRAW);
 
     auto binding = m_floorVao.getBinding(0);
-    binding.bindVertexBuffer(m_floorVbo, 0, sizeof(FloorAttr));
+    binding.bindVertexBuffer(m_floorVbo, 0, sizeof(VNTAttr));
 
     auto posAttr = m_floorVao.enableVertexAttrib(0);
-    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, pos));
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
     posAttr.setBinding(binding);
 
     auto normalAttr = m_floorVao.enableVertexAttrib(1);
-    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, normal));
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
     normalAttr.setBinding(binding);
 
     auto uvAttr = m_floorVao.enableVertexAttrib(2);
-    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(FloorAttr, uv));
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
     uvAttr.setBinding(binding);
 
     m_floorMaterial.ambient = glm::vec4(0.0f, 0.05f, 0.0f, 1.0f);
@@ -174,20 +174,15 @@ void RenderSystem::prepareTiger()
     m_tigerNVertices.resize(N_TIGER_FRAMES);
     m_tigerVertexOffset.resize(N_TIGER_FRAMES);
 
-    struct TigerAttr {
-        glm::vec3 pos;
-        glm::vec3 normal;
-        glm::vec2 uv;
-    };
-
-    std::vector<TigerAttr> buf;
+    std::vector<VNTAttr> buf;
 
     for (int i = 0; i < N_TIGER_FRAMES; i++) {
         std::ostringstream filename;
         filename << "Data/dynamic_objects/tiger/Tiger_"
-                 << i / 10 << i % 10 << "_triangles_vnt.geom";
+                 << std::setfill('0') << std::setw(2)
+                 << i << "_triangles_vnt.geom";
 
-        auto frame = read_geometry<TigerAttr>(filename.str().c_str());
+        auto frame = read_geometry(filename.str().c_str());
 
         m_tigerNVertices[i] = frame.size();
 
@@ -204,18 +199,18 @@ void RenderSystem::prepareTiger()
     m_tigerVbo.setData(buf, GL_STATIC_DRAW);
 
     auto binding = m_tigerVao.getBinding(0);
-    binding.bindVertexBuffer(m_tigerVbo, 0, sizeof(TigerAttr));
+    binding.bindVertexBuffer(m_tigerVbo, 0, sizeof(VNTAttr));
 
     auto posAttr = m_tigerVao.enableVertexAttrib(0);
-    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, pos));
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
     posAttr.setBinding(binding);
 
     auto normalAttr = m_tigerVao.enableVertexAttrib(1);
-    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, normal));
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
     normalAttr.setBinding(binding);
 
     auto uvAttr = m_tigerVao.enableVertexAttrib(2);
-    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(TigerAttr, uv));
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
     uvAttr.setBinding(binding);
 
     m_tigerMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
@@ -236,7 +231,7 @@ void RenderSystem::prepareTiger()
     m_tigerTexture.setWrapT(GL_REPEAT);
 }
 
-static std::vector<glm::vec3> read_geometry_text(const char* filename)
+static std::vector<VNTAttr> read_geometry_text(const char* filename)
 {
     std::cout << "Reading geometry from the geometry file " << filename << "...\n";
 
@@ -249,9 +244,16 @@ static std::vector<glm::vec3> read_geometry_text(const char* filename)
     int n_triangles;
     file >> n_triangles;
 
-    std::vector<glm::vec3> object(n_triangles * 3);
-    for (int i = 0; i < n_triangles * 3; ++i) {
-        file >> object[i].x >> object[i].y >> object[i].z;
+    std::vector<VNTAttr> object(n_triangles * 3);
+    for (int i = 0; i < n_triangles; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            VNTAttr& attr = object[i * 3 + j];
+            file >> attr.pos.x >> attr.pos.y >> attr.pos.z;
+        }
+        glm::vec3 normal = glm::normalize(glm::cross(
+            object[i * 3 + 1].pos - object[i * 3].pos,
+            object[i * 3 + 2].pos - object[i * 3].pos));
+        object[i * 3].normal = object[i * 3 + 1].normal = object[i * 3 + 2].normal = normal;
     }
 
     std::cout << "Read " << n_triangles << " primitives successfully.\n\n";
@@ -266,11 +268,19 @@ static int make_geometry_text(ou::VertexArray& vao, ou::VertexBuffer& vbo, const
     vbo.setData(vertices, GL_STATIC_DRAW);
 
     auto binding = vao.getBinding(0);
-    binding.bindVertexBuffer(vbo, 0, sizeof(glm::vec3));
+    binding.bindVertexBuffer(vbo, 0, sizeof(VNTAttr));
 
     auto posAttr = vao.enableVertexAttrib(0);
     posAttr.setFormat(3, GL_FLOAT, GL_FALSE, 0);
     posAttr.setBinding(binding);
+
+    auto normalAttr = vao.enableVertexAttrib(1);
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
+    normalAttr.setBinding(binding);
+
+    auto uvAttr = vao.enableVertexAttrib(2);
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
+    uvAttr.setBinding(binding);
 
     return vertices.size();
 }
@@ -278,26 +288,191 @@ static int make_geometry_text(ou::VertexArray& vao, ou::VertexBuffer& vbo, const
 void RenderSystem::prepareCar()
 {
     m_carBodyNVertices = make_geometry_text(m_carBodyVao, m_carBodyVbo, "Data/car_body_triangles_v.txt");
+
+    m_carBodyMaterial.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    m_carBodyMaterial.diffuse = glm::vec4(0.498f, 1.000f, 0.831f, 1.0f);
+    m_carBodyMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_carBodyMaterial.specularExponent = 91.2f;
+    m_carBodyMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+
     m_carWheelNVertices = make_geometry_text(m_carWheelVao, m_carWheelVbo, "Data/car_wheel_triangles_v.txt");
+
+    m_carWheelMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_carWheelMaterial.diffuse = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    m_carWheelMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_carWheelMaterial.specularExponent = 91.2f;
+    m_carWheelMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+
     m_carNutNVertices = make_geometry_text(m_carNutVao, m_carNutVbo, "Data/car_nut_triangles_v.txt");
+
+    m_carNutMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_carNutMaterial.diffuse = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    m_carNutMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_carNutMaterial.specularExponent = 91.2f;
+    m_carNutMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+
     m_cowNVertices = make_geometry_text(m_cowVao, m_cowVbo, "Data/cow_triangles_v.txt");
+
+    m_cowMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_cowMaterial.diffuse = glm::vec4(0.75164f, 0.60648f, 0.22648f, 1.0f);
+    m_cowMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_cowMaterial.specularExponent = 51.2f;
+    m_cowMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+
     m_teapotNVertices = make_geometry_text(m_teapotVao, m_teapotVbo, "Data/teapot_triangles_v.txt");
+
+    m_teapotMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_teapotMaterial.diffuse = glm::vec4(0.3f, 1.0f, 1.0f, 1.0f);
+    m_teapotMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_teapotMaterial.specularExponent = 91.2f;
+    m_teapotMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
 }
 
-static void setMaterial(ou::Shader& shader, PhongMaterial const& material)
+void RenderSystem::prepareIronman()
 {
-    shader.setUniform(material.ambient, "u_material.ambient_color");
-    shader.setUniform(material.diffuse, "u_material.diffuse_color");
-    shader.setUniform(material.emissive, "u_material.emissive_color");
-    shader.setUniform(material.specular, "u_material.specular_color");
-    shader.setUniform(material.specularExponent, "u_material.specular_exponent");
+    auto vertices = read_geometry("Data/static_objects/ironman_vnt.geom");
+    m_ironmanNVertices = vertices.size();
+
+    m_ironmanVbo.setData(vertices, GL_STATIC_DRAW);
+
+    auto binding = m_ironmanVao.getBinding(0);
+    binding.bindVertexBuffer(m_ironmanVbo, 0, sizeof(VNTAttr));
+
+    auto posAttr = m_ironmanVao.enableVertexAttrib(0);
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
+    posAttr.setBinding(binding);
+
+    auto normalAttr = m_ironmanVao.enableVertexAttrib(1);
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
+    normalAttr.setBinding(binding);
+
+    auto uvAttr = m_ironmanVao.enableVertexAttrib(2);
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
+    uvAttr.setBinding(binding);
+
+    m_ironmanMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_ironmanMaterial.diffuse = glm::vec4(0.85164f, 0.10648f, 0.12648f, 1.0f);
+    m_ironmanMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_ironmanMaterial.specularExponent = 91.2f;
+    m_ironmanMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+}
+
+void RenderSystem::prepareWolf()
+{
+    m_wolfNVertices.resize(N_WOLF_FRAMES);
+    m_wolfVertexOffset.resize(N_WOLF_FRAMES);
+
+    std::vector<VNTAttr> buf;
+
+    for (int i = 0; i < N_WOLF_FRAMES; i++) {
+        std::ostringstream filename;
+        filename << "Data/dynamic_objects/wolf/wolf_"
+                 << std::setfill('0') << std::setw(2)
+                 << i << "_vnt.geom";
+
+        auto frame = read_geometry(filename.str().c_str());
+
+        m_wolfNVertices[i] = frame.size();
+
+        // append frame data
+        std::copy(frame.begin(), frame.end(), std::back_inserter(buf));
+
+        if (i == 0) {
+            m_wolfVertexOffset[i] = 0;
+        } else {
+            m_wolfVertexOffset[i] = m_wolfVertexOffset[i - 1] + m_wolfNVertices[i - 1];
+        }
+    }
+
+    m_wolfVbo.setData(buf, GL_STATIC_DRAW);
+
+    auto binding = m_wolfVao.getBinding(0);
+    binding.bindVertexBuffer(m_wolfVbo, 0, sizeof(VNTAttr));
+
+    auto posAttr = m_wolfVao.enableVertexAttrib(0);
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
+    posAttr.setBinding(binding);
+
+    auto normalAttr = m_wolfVao.enableVertexAttrib(1);
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
+    normalAttr.setBinding(binding);
+
+    auto uvAttr = m_wolfVao.enableVertexAttrib(2);
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
+    uvAttr.setBinding(binding);
+
+    m_wolfMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_wolfMaterial.diffuse = glm::vec4(0.85164f, 0.85164f, 0.85164f, 1.0f);
+    m_wolfMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_wolfMaterial.specularExponent = 20.2f;
+    m_wolfMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+}
+
+void RenderSystem::prepareSpider()
+{
+    m_spiderNVertices.resize(N_SPIDER_FRAMES);
+    m_spiderVertexOffset.resize(N_SPIDER_FRAMES);
+
+    std::vector<VNTAttr> buf;
+
+    for (int i = 0; i < N_SPIDER_FRAMES; i++) {
+        std::ostringstream filename;
+        filename << "Data/dynamic_objects/spider/spider_vnt_"
+                 << std::setfill('0') << std::setw(2)
+                 << i << ".geom";
+
+        auto frame = read_geometry(filename.str().c_str());
+
+        m_spiderNVertices[i] = frame.size();
+
+        // append frame data
+        std::copy(frame.begin(), frame.end(), std::back_inserter(buf));
+
+        if (i == 0) {
+            m_spiderVertexOffset[i] = 0;
+        } else {
+            m_spiderVertexOffset[i] = m_spiderVertexOffset[i - 1] + m_spiderNVertices[i - 1];
+        }
+    }
+
+    m_spiderVbo.setData(buf, GL_STATIC_DRAW);
+
+    auto binding = m_spiderVao.getBinding(0);
+    binding.bindVertexBuffer(m_spiderVbo, 0, sizeof(VNTAttr));
+
+    auto posAttr = m_spiderVao.enableVertexAttrib(0);
+    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
+    posAttr.setBinding(binding);
+
+    auto normalAttr = m_spiderVao.enableVertexAttrib(1);
+    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
+    normalAttr.setBinding(binding);
+
+    auto uvAttr = m_spiderVao.enableVertexAttrib(2);
+    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
+    uvAttr.setBinding(binding);
+
+    m_spiderMaterial.ambient = glm::vec4(0.24725f, 0.1995f, 0.0745f, 1.0f);
+    m_spiderMaterial.diffuse = glm::vec4(0.0f, 0.2f, 0.8f, 1.0f);
+    m_spiderMaterial.specular = glm::vec4(0.728281f, 0.655802f, 0.466065f, 1.0f);
+    m_spiderMaterial.specularExponent = 20.2f;
+    m_spiderMaterial.emissive = glm::vec4(0.1f, 0.1f, 0.0f, 1.0f);
+}
+
+void PhongMaterial::setMaterial(ou::Shader& shader) const
+{
+    shader.setUniform(ambient, "u_material.ambient_color");
+    shader.setUniform(diffuse, "u_material.diffuse_color");
+    shader.setUniform(emissive, "u_material.emissive_color");
+    shader.setUniform(specular, "u_material.specular_color");
+    shader.setUniform(specularExponent, "u_material.specular_exponent");
 }
 
 void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov)
 {
     SceneState const& scene = engine.getOne<SceneState>();
     float aspectRatio = static_cast<float>(scene.windowSize.x) / scene.windowSize.y;
-    glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, 100.0f, 20000.0f);
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, 20.0f, 20000.0f);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -333,8 +508,9 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_base_texture");
+        m_phongShader.setUniform(1, "u_flag_texture_mapping");
 
-        setMaterial(m_phongShader, m_floorMaterial);
+        m_floorMaterial.setMaterial(m_phongShader);
 
         glFrontFace(GL_CCW);
         m_phongShader.use();
@@ -365,8 +541,9 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_base_texture");
+        m_phongShader.setUniform(1, "u_flag_texture_mapping");
 
-        setMaterial(m_phongShader, m_tigerMaterial);
+        m_tigerMaterial.setMaterial(m_phongShader);
 
         glFrontFace(GL_CW);
         m_phongShader.use();
@@ -376,8 +553,90 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         glDrawArrays(GL_TRIANGLES, m_tigerVertexOffset[tiger.currFrame], m_tigerNVertices[tiger.currFrame]);
     }
 
+    // draw wolf
+    for (ou::Entity const& ent : engine.iterate<Wolf>()) {
+        Wolf const& wolf = ent.get<Wolf>();
+
+        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
+        glm::mat3 modelViewMatrixInvTrans;
+
+        modelViewMatrix = viewMatrix;
+        modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(200.0f));
+
+        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+        m_phongShader.setUniform(0, "u_flag_texture_mapping");
+
+        m_wolfMaterial.setMaterial(m_phongShader);
+
+        glFrontFace(GL_CW);
+        m_phongShader.use();
+        m_wolfVao.use();
+        glDrawArrays(GL_TRIANGLES, m_wolfVertexOffset[wolf.currFrame], m_wolfNVertices[wolf.currFrame]);
+    }
+
+    // draw spider
+    for (ou::Entity const& ent : engine.iterate<Spider>()) {
+        Spider const& spider = ent.get<Spider>();
+
+        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
+        glm::mat3 modelViewMatrixInvTrans;
+
+        modelViewMatrix = viewMatrix;
+        modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(80.0f, 0, 0));
+        modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(80.0f));
+        modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(180.0f), glm::vec3(0, 0, 1));
+
+        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+        m_phongShader.setUniform(0, "u_flag_texture_mapping");
+
+        m_spiderMaterial.setMaterial(m_phongShader);
+
+        glFrontFace(GL_CW);
+        m_phongShader.use();
+        m_spiderVao.use();
+        glDrawArrays(GL_TRIANGLES, m_spiderVertexOffset[spider.currFrame], m_spiderNVertices[spider.currFrame]);
+    }
+
+    // draw ironman
+    {
+        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
+        glm::mat3 modelViewMatrixInvTrans;
+
+        modelViewMatrix = viewMatrix;
+        modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(0.0f, 50.0f, -120.0f));
+        modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(30.0f), glm::vec3(1, 0, 0));
+        modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(50.0f));
+
+        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
+        m_phongShader.setUniform(0, "u_flag_texture_mapping");
+
+        m_ironmanMaterial.setMaterial(m_phongShader);
+
+        glFrontFace(GL_CW);
+        m_phongShader.use();
+        m_ironmanVao.use();
+        glDrawArrays(GL_TRIANGLES, 0, m_ironmanNVertices);
+    }
+
     // draw car
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     for (ou::Entity const& ent : engine.iterate<Car>()) {
         Car const& car = ent.get<Car>();
 
@@ -388,29 +647,45 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 4.89f, -4.0f));
         modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-        glm::mat4 modelViewProjectionMatrix = projectionMatrix * viewMatrix * modelMatrix;
-        m_simpleShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
+        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         glFrontFace(GL_CCW);
-        m_simpleShader.use();
+        m_phongShader.use();
 
         // draw car body
         m_carBodyVao.use();
-        m_simpleShader.setUniform(glm::vec3(0.498f, 1.000f, 0.831f), "u_primitive_color");
+        m_carBodyMaterial.setMaterial(m_phongShader);
         glDrawArrays(GL_TRIANGLES, 0, m_carBodyNVertices);
 
         // draw wheels
-        auto drawWheelAndNut = [&](glm::mat4 const& mvpMat, float offset) {
+        auto drawWheelAndNut = [&](glm::mat4 const& modelMat, float offset) {
+            glm::mat4 modelViewMatrix = viewMatrix * modelMat;
+            glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+            glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+            m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+            m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+            m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+            m_carWheelMaterial.setMaterial(m_phongShader);
+
             m_carWheelVao.use();
-            m_simpleShader.setUniform(mvpMat, "u_ModelViewProjectionMatrix");
-            m_simpleShader.setUniform(glm::vec3(0.000f, 0.808f, 0.820f), "u_primitive_color");
             glDrawArrays(GL_TRIANGLES, 0, m_carWheelNVertices);
 
             for (int i = 0; i < 5; ++i) {
-                glm::mat4 nutMat = glm::rotate(mvpMat, glm::radians(72.0f * i), glm::vec3(0, 0, 1));
+                glm::mat4 nutMat = glm::rotate(modelMat, glm::radians(72.0f * i), glm::vec3(0, 0, 1));
                 nutMat = glm::translate(nutMat, glm::vec3(1.7f - 0.5f, 0.0f, offset));
-                m_simpleShader.setUniform(nutMat, "u_ModelViewProjectionMatrix");
-                m_simpleShader.setUniform(glm::vec3(0.690f, 0.769f, 0.871f), "u_primitive_color");
+
+                glm::mat4 modelViewMatrix = viewMatrix * nutMat;
+                glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+                glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+                m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+                m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+                m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+                m_carNutMaterial.setMaterial(m_phongShader);
 
                 m_carNutVao.use();
                 glDrawArrays(GL_TRIANGLES, 0, m_carNutNVertices);
@@ -423,45 +698,72 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         wheelModelMatrix = glm::translate(modelMatrix, glm::vec3(-3.9f, -3.5f, 4.5f));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelRot, glm::vec3(0, 1, 0));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelAngle, glm::vec3(0, 0, 1));
-        modelViewProjectionMatrix = projectionMatrix * viewMatrix * wheelModelMatrix;
-        drawWheelAndNut(modelViewProjectionMatrix, 1.0f);
+        drawWheelAndNut(wheelModelMatrix, 1.0f);
 
         // draw wheel 1
         wheelModelMatrix = glm::translate(modelMatrix, glm::vec3(3.9f, -3.5f, 4.5f));
+        wheelModelMatrix = glm::rotate(wheelModelMatrix, car.rearRot, glm::vec3(0, 1, 0));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelAngle, glm::vec3(0, 0, 1));
-        modelViewProjectionMatrix = projectionMatrix * viewMatrix * wheelModelMatrix;
-        drawWheelAndNut(modelViewProjectionMatrix, 1.0f);
+        drawWheelAndNut(wheelModelMatrix, 1.0f);
 
         // draw wheel 2
         wheelModelMatrix = glm::translate(modelMatrix, glm::vec3(-3.9f, -3.5f, -4.5f));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelRot, glm::vec3(0, 1, 0));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelAngle, glm::vec3(0, 0, 1));
-        modelViewProjectionMatrix = projectionMatrix * viewMatrix * wheelModelMatrix;
-        drawWheelAndNut(modelViewProjectionMatrix, -1.0f);
+        drawWheelAndNut(wheelModelMatrix, -1.0f);
 
         // draw wheel 3
         wheelModelMatrix = glm::translate(modelMatrix, glm::vec3(3.9f, -3.5f, -4.5f));
+        wheelModelMatrix = glm::rotate(wheelModelMatrix, car.rearRot, glm::vec3(0, 1, 0));
         wheelModelMatrix = glm::rotate(wheelModelMatrix, car.wheelAngle, glm::vec3(0, 0, 1));
-        modelViewProjectionMatrix = projectionMatrix * viewMatrix * wheelModelMatrix;
-        drawWheelAndNut(modelViewProjectionMatrix, -1.0f);
+        drawWheelAndNut(wheelModelMatrix, -1.0f);
     }
 
     // draw teapot
-    {
+    for (ou::Entity const& ent : engine.iterate<Teapot>()) {
+        Teapot const& teapot = ent.get<Teapot>();
+
         glm::mat4 modelMatrix(1.0f);
+        modelMatrix = glm::translate(modelMatrix, teapot.pos);
+        modelMatrix = glm::rotate(modelMatrix, teapot.angle, glm::vec3(0, 1, 0));
         modelMatrix = glm::scale(modelMatrix, glm::vec3(20.0f));
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 1.6f, 0));
         modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
-        glm::mat4 modelViewProjectionMatrix = projectionMatrix * viewMatrix * modelMatrix;
-        m_simpleShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
+        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+        m_teapotMaterial.setMaterial(m_phongShader);
 
-        m_simpleShader.use();
+        m_phongShader.use();
         m_teapotVao.use();
-        m_simpleShader.setUniform(glm::vec3(0.998f, 1.000f, 0.831f), "u_primitive_color");
         glDrawArrays(GL_TRIANGLES, 0, m_teapotNVertices);
     }
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    // draw cow
+    {
+        glm::mat4 modelMatrix(1.0f);
+        modelMatrix = glm::inverse(glm::lookAt(scene.second.eyePos,
+            scene.second.eyePos + scene.second.lookDir, scene.second.upDir));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0, 1, 0));
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(200.0f));
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(-0.4f, -0.22f, 0));
+
+        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
+        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
+        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
+        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
+        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+        m_cowMaterial.setMaterial(m_phongShader);
+
+        m_phongShader.use();
+        m_cowVao.use();
+        glDrawArrays(GL_TRIANGLES, 0, m_cowNVertices);
+    }
 
     // draw axes
     {
@@ -489,8 +791,8 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
     SceneState const& scene = engine.getOne<SceneState>();
 
     {
-        glm::mat4 viewMatrix = glm::lookAt(scene.primary.eyePos,
-            scene.primary.eyePos + scene.primary.lookDir, scene.primary.upDir);
+        Camera const& cam = scene.primary;
+        glm::mat4 viewMatrix = glm::lookAt(cam.eyePos, cam.eyePos + cam.lookDir, cam.upDir);
 
         glViewport(0, 0, scene.windowSize.x, scene.windowSize.y);
         glScissor(0, 0, scene.windowSize.x, scene.windowSize.y);
@@ -498,8 +800,8 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
     }
 
     if (scene.secondCamOn) {
-        glm::mat4 viewMatrix = glm::lookAt(scene.second.eyePos,
-            scene.second.eyePos + scene.second.lookDir, scene.second.upDir);
+        Camera const& cam = scene.second;
+        glm::mat4 viewMatrix = glm::lookAt(cam.eyePos, cam.eyePos + cam.lookDir, cam.upDir);
 
         glViewport(0, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
         glScissor(0, 0, scene.windowSize.x / 2, scene.windowSize.y / 2);
@@ -514,7 +816,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
 
         glm::mat3 rot = glm::rotate(glm::mat4(1.0f), car.angle, glm::vec3(0, 1, 0));
 
-        glm::vec3 pos = glm::vec3(car.pos.x, 80.0f, car.pos.y);
+        glm::vec3 pos = glm::vec3(car.pos.x, 80.0f, car.pos.y) + rot * glm::vec3(0, 0, 68.0f);
         glm::vec3 lookDir = rot * glm::vec3(0, 0, 1);
 
         glm::mat4 viewMatrix = glm::lookAt(pos - lookDir * 80.0f, pos + lookDir, glm::vec3(0, 1, 0));
@@ -532,11 +834,11 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         float angle = std::atan2(dir.x, dir.z);
 
         glm::mat3 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
-        glm::vec3 pos = tiger.pos + rot * glm::vec3(0, 80.0f, 50.0f);
+        glm::vec3 pos = tiger.pos + rot * glm::vec3(0, 60.0f, 50.0f);
         glm::vec3 lookDir = rot * glm::vec3(0, -0.1f, 1);
 
         glm::mat4 viewMatrix = glm::lookAt(pos, pos + lookDir, glm::vec3(0, 1, 0));
 
-        render(engine, viewMatrix, 45.0f);
+        render(engine, viewMatrix, 90.0f);
     }
 }

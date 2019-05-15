@@ -21,6 +21,11 @@ void Input::mouseClick(int button, int event)
 {
     if (button == GLUT_LEFT_BUTTON) {
         m_leftDown = (event == GLUT_DOWN);
+
+        if (event == GLUT_UP) {
+            m_mouseClicked = true;
+        }
+
     } else if (button == GLUT_RIGHT_BUTTON) {
         m_rightDown = (event == GLUT_DOWN);
     }
@@ -88,6 +93,7 @@ void Input::update(float delta, glm::ivec2 windowSize)
 void Input::afterUpdate()
 {
     m_mouseWheelDelta = 0;
+    m_mouseClicked = false;
 }
 
 bool Input::isMouseDown() const
@@ -100,6 +106,15 @@ bool Input::isKeyPressed(unsigned char key) const
     auto it = m_keyStates.find(key);
     if (it != m_keyStates.end()) {
         return it->second;
+    }
+    return false;
+}
+
+bool Input::isMouseClicked(glm::ivec2 &pos) const
+{
+    if (m_mouseClicked) {
+        pos = m_realMousePos;
+        return true;
     }
     return false;
 }

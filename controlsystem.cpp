@@ -21,28 +21,27 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
 
     input.update(deltaTime, scene.windowSize);
 
-    // debug movement
     if (scene.secondCamOn) {
         Camera& cam = scene.second;
 
         // rotate camera
-        glm::dvec3 right = glm::normalize(glm::cross(cam.upDir, cam.lookDir));
+        glm::vec3 right = glm::normalize(glm::cross(cam.upDir, cam.lookDir));
 
         if (input.isMouseDown()) {
-            glm::dvec2 angle = glm::dvec2(input.mouseDelta()) * glm::radians(0.3);
+            glm::vec2 angle = glm::vec2(input.mouseDelta()) * glm::radians(0.3f);
             float alt = glm::angle(cam.lookDir, cam.upDir);
 
             float min_angle = 5.0f;
 
-            if (alt + angle.y < glm::radians(min_angle)) {
-                angle.y = glm::radians(min_angle) - alt;
+            if (alt - angle.y < glm::radians(min_angle)) {
+                angle.y = alt - glm::radians(min_angle);
             }
-            if (alt + angle.y > glm::radians(180.0f - min_angle)) {
-                angle.y = glm::radians(180.0f - min_angle) - alt;
+            if (alt - angle.y > glm::radians(180.0f - min_angle)) {
+                angle.y = alt - glm::radians(180.0f - min_angle);
             }
 
-            cam.lookDir = glm::rotate(glm::dmat4(1.0), angle.y, right)
-                * glm::rotate(glm::dmat4(1.0), -angle.x, glm::dvec3(cam.upDir))
+            cam.lookDir = glm::rotate(glm::mat4(1.0), -angle.y, right)
+                * glm::rotate(glm::mat4(1.0), angle.x, glm::vec3(cam.upDir))
                 * glm::dvec4(cam.lookDir, 1.0);
 
             cam.lookDir = glm::normalize(cam.lookDir);
@@ -50,7 +49,8 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
 
         // move camera
         glm::vec3 moveDir{};
-        glm::vec2 nLookDir = glm::normalize(glm::vec2(cam.lookDir.x, cam.lookDir.z));
+        glm::vec3 nLookDir = glm::normalize(cam.lookDir);
+        glm::vec3 realUp = glm::cross(nLookDir, right);
 
         if (input.isKeyPressed('a')) {
             moveDir += right;
@@ -59,22 +59,20 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
             moveDir -= right;
         }
         if (input.isKeyPressed('s')) {
-            moveDir.x -= nLookDir.x;
-            moveDir.z -= nLookDir.y;
+            moveDir -= nLookDir;
         }
         if (input.isKeyPressed('w')) {
-            moveDir.x += nLookDir.x;
-            moveDir.z += nLookDir.y;
+            moveDir += nLookDir;
         }
         if (input.isKeyPressed('r')) {
-            moveDir.y += 1;
+            moveDir += realUp;
         }
         if (input.isKeyPressed('f')) {
-            moveDir.y -= 1;
+            moveDir -= realUp;
         }
 
         if (glm::length(moveDir) > 0) {
-            moveDir = glm::normalize(moveDir) * 600.0f * deltaTime;
+            moveDir = glm::normalize(moveDir) * 1000.0f * deltaTime;
             cam.eyePos += moveDir;
         }
 
@@ -90,42 +88,42 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
 
         glm::vec3 right = glm::normalize(glm::cross(cam.upDir, cam.lookDir));
 
-        float angle = 10.0f;
+        float angle = glm::radians(11.25f);
         if (input.isKeyPressed('a')) {
             input.keyUp('a');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle * deltaTime, glm::vec3(0, 1, 0)));
+            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0)));
         }
         if (input.isKeyPressed('d')) {
             input.keyUp('d');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle * deltaTime, glm::vec3(0, 1, 0)));
+            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle, glm::vec3(0, 1, 0)));
         }
         if (input.isKeyPressed('w')) {
             input.keyUp('w');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle * deltaTime, right));
+            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), -angle, right));
         }
         if (input.isKeyPressed('s')) {
             input.keyUp('s');
-            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle * deltaTime, right));
+            cam.eyePos = cam.eyePos * glm::mat3(glm::rotate(glm::mat4(1.0f), angle, right));
         }
         cam.lookDir = glm::normalize(-cam.eyePos);
+    }
 
-        // secondary camera
-        if (input.isKeyPressed('v')) {
-            input.keyUp('v');
-            scene.secondCamOn = !scene.secondCamOn;
-        }
+    // secondary camera
+    if (input.isKeyPressed('v')) {
+        input.keyUp('v');
+        scene.secondCamOn = !scene.secondCamOn;
+    }
 
-        // car camera
-        if (input.isKeyPressed('c')) {
-            input.keyUp('c');
-            scene.carViewportOn = !scene.carViewportOn;
-        }
+    // car camera
+    if (input.isKeyPressed('c')) {
+        input.keyUp('c');
+        scene.carViewportOn = !scene.carViewportOn;
+    }
 
-        // tiger camera
-        if (input.isKeyPressed('t')) {
-            input.keyUp('t');
-            scene.tigerViewportOn = !scene.tigerViewportOn;
-        }
+    // tiger camera
+    if (input.isKeyPressed('t')) {
+        input.keyUp('t');
+        scene.tigerViewportOn = !scene.tigerViewportOn;
     }
 }
 
