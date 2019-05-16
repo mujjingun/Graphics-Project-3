@@ -77,7 +77,7 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
         }
 
         cam.fov += input.scrollDelta();
-        cam.fov = glm::clamp(cam.fov, 1.0f, 120.0f);
+        cam.fov = glm::clamp(cam.fov, 1.0f, 150.0f);
     } else {
         Camera& cam = scene.primary;
 
