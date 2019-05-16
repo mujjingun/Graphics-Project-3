@@ -118,8 +118,14 @@ ObjectModel::ObjectModel(cb_type getGeometry, int nFrames)
     uvAttr.setBinding(binding);
 }
 
-void ObjectModel::render(int frame) const
+void ObjectModel::render(ou::Shader& shader, glm::mat4 modelViewMat, glm::mat4 projMat, int frame) const
 {
+    glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMat));
+    glm::mat4 modelViewProjectionMatrix = projMat * modelViewMat;
+    shader.setUniform(modelViewMat, "u_ModelViewMatrix");
+    shader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
+    shader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
+
     m_vao.use();
     glDrawArrays(GL_TRIANGLES, m_vertexOffset[frame], m_nVertices[frame]);
 }
@@ -127,6 +133,16 @@ void ObjectModel::render(int frame) const
 RenderSystem::RenderSystem()
     : m_simpleShader("Shaders/simple.vert", "Shaders/simple.frag")
     , m_phongShader("Shaders/Phong_Tx.vert", "Shaders/Phong_Tx.frag")
+    , m_floor([](int) {
+        return std::vector<VNTAttr>{
+            { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+            { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
+            { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+            { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+            { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+            { { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
+        };
+    })
     , m_tiger([](int i) {
         std::ostringstream filename;
         filename << "Data/dynamic_objects/tiger/Tiger_"
@@ -247,36 +263,9 @@ void RenderSystem::prepareAxes()
 
 void RenderSystem::prepareFloor()
 {
-    // vertices enumerated counterclockwise
-    const VNTAttr rectangleVertices[6] = {
-        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-        { { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-        { { 1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-        { { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-    };
-
-    m_floorVbo.setData(rectangleVertices, GL_STATIC_DRAW);
-
-    auto binding = m_floorVao.getBinding(0);
-    binding.bindVertexBuffer(m_floorVbo, 0, sizeof(VNTAttr));
-
-    auto posAttr = m_floorVao.enableVertexAttrib(0);
-    posAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, pos));
-    posAttr.setBinding(binding);
-
-    auto normalAttr = m_floorVao.enableVertexAttrib(1);
-    normalAttr.setFormat(3, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, normal));
-    normalAttr.setBinding(binding);
-
-    auto uvAttr = m_floorVao.enableVertexAttrib(2);
-    uvAttr.setFormat(2, GL_FLOAT, GL_FALSE, offsetof(VNTAttr, uv));
-    uvAttr.setBinding(binding);
-
-    m_floorMaterial.ambient = glm::vec4(0.0f, 0.05f, 0.0f, 1.0f);
-    m_floorMaterial.diffuse = glm::vec4(0.2f, 0.5f, 0.2f, 1.0f);
-    m_floorMaterial.specular = glm::vec4(0.24f, 0.5f, 0.24f, 1.0f);
+    m_floorMaterial.ambient = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    m_floorMaterial.diffuse = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+    m_floorMaterial.specular = glm::vec4(0.24f, 0.24f, 0.24f, 1.0f);
     m_floorMaterial.specularExponent = 2.5f;
     m_floorMaterial.emissive = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -405,18 +394,10 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
     // draw the floor
     {
-        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
-        glm::mat3 modelViewMatrixInvTrans;
-
+        glm::mat4 modelViewMatrix;
         modelViewMatrix = glm::translate(viewMatrix, glm::vec3(-500.0f, 0.0f, 500.0f));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(1000.0f, 1000.0f, 1000.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_base_texture");
         m_phongShader.setUniform(1, "u_flag_texture_mapping");
@@ -427,8 +408,7 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         m_phongShader.use();
         glActiveTexture(GL_TEXTURE0);
         m_floorTexture.use(GL_TEXTURE_2D);
-        m_floorVao.use();
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        m_floor.render(m_phongShader, modelViewMatrix, projectionMatrix);
     }
 
     // draw tigers
@@ -438,19 +418,11 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
         glm::vec3 dir = glm::normalize(hitbox.pos - tiger.lastPos);
 
-        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
-        glm::mat3 modelViewMatrixInvTrans;
-
+        glm::mat4 modelViewMatrix;
         modelViewMatrix = glm::translate(viewMatrix, hitbox.pos);
         modelViewMatrix = glm::rotate(modelViewMatrix, std::atan2(dir.x, dir.z), glm::vec3(0, 1, 0));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(0.5f));
-        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_base_texture");
         m_phongShader.setUniform(1, "u_flag_texture_mapping");
@@ -461,26 +433,17 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         m_phongShader.use();
         glActiveTexture(GL_TEXTURE0);
         m_tigerTexture.use(GL_TEXTURE_2D);
-        m_tiger.render(tiger.currFrame);
+        m_tiger.render(m_phongShader, modelViewMatrix, projectionMatrix, tiger.currFrame);
     }
 
     // draw wolf
     for (ou::Entity const& ent : engine.iterate<Wolf>()) {
         Wolf const& wolf = ent.get<Wolf>();
 
-        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
-        glm::mat3 modelViewMatrixInvTrans;
-
+        glm::mat4 modelViewMatrix;
         modelViewMatrix = viewMatrix;
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-45.f), glm::vec3(0, 1, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(200.0f));
-
-        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_flag_texture_mapping");
 
@@ -488,7 +451,7 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
         glFrontFace(GL_CW);
         m_phongShader.use();
-        m_wolf.render(wolf.currFrame);
+        m_wolf.render(m_phongShader, modelViewMatrix, projectionMatrix, wolf.currFrame);
     }
 
     // draw spider
@@ -496,21 +459,12 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         auto const& spider = ent.get<Spider>();
         auto const& hitbox = ent.get<Hitbox>();
 
-        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
-        glm::mat3 modelViewMatrixInvTrans;
-
+        glm::mat4 modelViewMatrix;
         modelViewMatrix = viewMatrix;
         modelViewMatrix = glm::translate(modelViewMatrix, hitbox.pos);
         modelViewMatrix = glm::rotate(modelViewMatrix, spider.angle, glm::vec3(0, 1, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(80.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(180.0f), glm::vec3(0, 0, 1));
-
-        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_flag_texture_mapping");
 
@@ -518,25 +472,16 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
         glFrontFace(GL_CW);
         m_phongShader.use();
-        m_spider.render(spider.currFrame);
+        m_spider.render(m_phongShader, modelViewMatrix, projectionMatrix, spider.currFrame);
     }
 
     // draw ironman
     {
-        glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
-        glm::mat3 modelViewMatrixInvTrans;
-
+        glm::mat4 modelViewMatrix;
         modelViewMatrix = viewMatrix;
         modelViewMatrix = glm::translate(modelViewMatrix, glm::vec3(0.0f, 50.0f, -120.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(30.0f), glm::vec3(1, 0, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(50.0f));
-
-        modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
 
         m_phongShader.setUniform(0, "u_flag_texture_mapping");
 
@@ -544,7 +489,7 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
         glFrontFace(GL_CW);
         m_phongShader.use();
-        m_ironman.render(0);
+        m_ironman.render(m_phongShader, modelViewMatrix, projectionMatrix);
     }
 
     // draw car
@@ -558,45 +503,26 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 4.89f, -4.0f));
         modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
-        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
-
         glFrontFace(GL_CCW);
         m_phongShader.use();
 
         // draw car body
         m_carBodyMaterial.setMaterial(m_phongShader);
-        m_carBody.render(0);
+        m_carBody.render(m_phongShader, viewMatrix * modelMatrix, projectionMatrix);
 
         // draw wheels
         auto drawWheelAndNut = [&](glm::mat4 const& modelMat, float offset) {
-            glm::mat4 modelViewMatrix = viewMatrix * modelMat;
-            glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-            glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-            m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-            m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-            m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
-            m_carWheelMaterial.setMaterial(m_phongShader);
 
-            m_carWheel.render(0);
+            m_carWheelMaterial.setMaterial(m_phongShader);
+            m_carWheel.render(m_phongShader, viewMatrix * modelMat, projectionMatrix);
 
             for (int i = 0; i < 5; ++i) {
                 glm::mat4 nutMat = glm::rotate(modelMat, glm::radians(72.0f * i), glm::vec3(0, 0, 1));
                 nutMat = glm::translate(nutMat, glm::vec3(1.7f - 0.5f, 0.0f, offset));
 
-                glm::mat4 modelViewMatrix = viewMatrix * nutMat;
-                glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-                glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-                m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-                m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-                m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
                 m_carNutMaterial.setMaterial(m_phongShader);
 
-                m_carNut.render(0);
+                m_carNut.render(m_phongShader, viewMatrix * nutMat, projectionMatrix);
             }
         };
 
@@ -639,16 +565,10 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 1.6f, 0));
         modelMatrix = glm::rotate(modelMatrix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
-        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
-        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
         m_teapotMaterial.setMaterial(m_phongShader);
 
         m_phongShader.use();
-        m_teapot.render(0);
+        m_teapot.render(m_phongShader, viewMatrix * modelMatrix, projectionMatrix);
     }
 
     // draw cow
@@ -660,16 +580,10 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         modelMatrix = glm::scale(modelMatrix, glm::vec3(200.0f));
         modelMatrix = glm::translate(modelMatrix, glm::vec3(-0.4f, -0.22f, 0));
 
-        glm::mat4 modelViewMatrix = viewMatrix * modelMatrix;
-        glm::mat3 modelViewMatrixInvTrans = glm::inverseTranspose(glm::mat3(modelViewMatrix));
-        glm::mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
-        m_phongShader.setUniform(modelViewMatrix, "u_ModelViewMatrix");
-        m_phongShader.setUniform(modelViewMatrixInvTrans, "u_ModelViewMatrixInvTrans");
-        m_phongShader.setUniform(modelViewProjectionMatrix, "u_ModelViewProjectionMatrix");
         m_cowMaterial.setMaterial(m_phongShader);
 
         m_phongShader.use();
-        m_cow.render(0);
+        m_cow.render(m_phongShader, viewMatrix * modelMatrix, projectionMatrix);
     }
 
     // draw axes
@@ -696,6 +610,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
 {
     SceneState const& scene = engine.getOne<SceneState>();
 
+    // Primary camera
     {
         Camera const& cam = scene.primary;
         glm::mat4 viewMatrix = glm::lookAt(cam.eyePos, cam.eyePos + cam.lookDir, cam.upDir);

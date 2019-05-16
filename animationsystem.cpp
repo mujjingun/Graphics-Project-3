@@ -226,7 +226,7 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
             glm::vec3 diff = mouseUnprojPos - hitbox.pos;
             glm::vec3 dir = glm::normalize(diff);
             spider.angle = std::atan2(dir.x, dir.z);
-            if (glm::length(diff) > 100.0f) {
+            if (glm::length(diff) > 50.0f) {
                 hitbox.pos += dir * 100.0f * deltaTime;
                 hitbox.pos = glm::clamp(hitbox.pos, -500.0f, 500.0f);
                 hitbox.pos.y = 0;

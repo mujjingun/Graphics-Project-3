@@ -32,13 +32,12 @@ class ObjectModel {
     std::vector<int> m_vertexOffset;
     ou::VertexBuffer m_vbo;
     ou::VertexArray m_vao;
-    PhongMaterial m_material;
 
 public:
     using cb_type = std::function<std::vector<VNTAttr>(int)>;
     ObjectModel(cb_type getGeometry, int nFrames = 1);
 
-    void render(int frame) const;
+    void render(ou::Shader& shader, glm::mat4 modelViewMat, glm::mat4 projMat, int frame = 0) const;
 };
 
 class RenderSystem : public ou::EntitySystem {
@@ -69,8 +68,7 @@ private:
     ou::VertexBuffer m_axesVbo;
     ou::VertexArray m_axesVao;
 
-    ou::VertexBuffer m_floorVbo;
-    ou::VertexArray m_floorVao;
+    ObjectModel m_floor;
     ou::Texture m_floorTexture;
     PhongMaterial m_floorMaterial;
 
