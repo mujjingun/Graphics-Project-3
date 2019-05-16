@@ -23,7 +23,6 @@ struct SceneState {
 struct Tiger {
     int currFrame = 0;
     float elapsedTime = 0;
-    glm::vec3 pos{};
     glm::vec3 lastPos{};
 };
 

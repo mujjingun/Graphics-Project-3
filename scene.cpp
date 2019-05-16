@@ -24,8 +24,8 @@ Scene::Scene()
     state.second.fov = 120.0f;
 
     m_engine.addEntity(ou::Entity{ state, Input{} });
-    m_engine.addEntity(ou::Entity{ Tiger{} });
-    m_engine.addEntity(ou::Entity{ Tiger{ 0, 3.0f }, TigerCam{} });
+    m_engine.addEntity(ou::Entity{ Tiger{}, Hitbox{} });
+    m_engine.addEntity(ou::Entity{ Tiger{ 0, 3.0f }, TigerCam{}, Hitbox{} });
     m_engine.addEntity(ou::Entity{ Car{}, CarCam{}, Hitbox{} });
     m_engine.addEntity(ou::Entity{ Car{}, Hitbox{} });
     m_engine.addEntity(ou::Entity{ Teapot{}, Hitbox{ glm::vec3(-300.0f, 0, -200.f) } });

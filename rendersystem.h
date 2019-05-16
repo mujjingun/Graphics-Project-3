@@ -3,10 +3,11 @@
 
 #include "ecs/entitysystem.h"
 #include "graphics/shader.h"
-#include "graphics/vertexbuffer.h"
-#include "graphics/vertexarray.h"
 #include "graphics/texture.h"
+#include "graphics/vertexarray.h"
+#include "graphics/vertexbuffer.h"
 
+#include <functional>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -17,7 +18,27 @@ struct PhongMaterial {
     float specularExponent;
     glm::vec4 emissive;
 
-    void setMaterial(ou::Shader &shader) const;
+    void setMaterial(ou::Shader& shader) const;
+};
+
+struct VNTAttr {
+    glm::vec3 pos;
+    glm::vec3 normal;
+    glm::vec2 uv;
+};
+
+class ObjectModel {
+    std::vector<int> m_nVertices;
+    std::vector<int> m_vertexOffset;
+    ou::VertexBuffer m_vbo;
+    ou::VertexArray m_vao;
+    PhongMaterial m_material;
+
+public:
+    using cb_type = std::function<std::vector<VNTAttr>(int)>;
+    ObjectModel(cb_type getGeometry, int nFrames = 1);
+
+    void render(int frame) const;
 };
 
 class RenderSystem : public ou::EntitySystem {
@@ -53,54 +74,33 @@ private:
     ou::Texture m_floorTexture;
     PhongMaterial m_floorMaterial;
 
-    std::vector<int> m_tigerNVertices;
-    std::vector<int> m_tigerVertexOffset;
-    ou::VertexBuffer m_tigerVbo;
-    ou::VertexArray m_tigerVao;
-    ou::Texture m_tigerTexture;
+    ObjectModel m_tiger;
     PhongMaterial m_tigerMaterial;
+    ou::Texture m_tigerTexture;
 
-    ou::VertexBuffer m_carBodyVbo;
-    ou::VertexArray m_carBodyVao;
-    int m_carBodyNVertices;
-    PhongMaterial m_carBodyMaterial;
-
-    ou::VertexBuffer m_carWheelVbo;
-    ou::VertexArray m_carWheelVao;
-    int m_carWheelNVertices;
-    PhongMaterial m_carWheelMaterial;
-
-    ou::VertexBuffer m_carNutVbo;
-    ou::VertexArray m_carNutVao;
-    int m_carNutNVertices;
-    PhongMaterial m_carNutMaterial;
-
-    ou::VertexBuffer m_cowVbo;
-    ou::VertexArray m_cowVao;
-    int m_cowNVertices;
-    PhongMaterial m_cowMaterial;
-
-    ou::VertexBuffer m_teapotVbo;
-    ou::VertexArray m_teapotVao;
-    int m_teapotNVertices;
-    PhongMaterial m_teapotMaterial;
-
-    ou::VertexBuffer m_ironmanVbo;
-    ou::VertexArray m_ironmanVao;
-    int m_ironmanNVertices;
-    PhongMaterial m_ironmanMaterial;
-
-    std::vector<int> m_wolfNVertices;
-    std::vector<int> m_wolfVertexOffset;
-    ou::VertexBuffer m_wolfVbo;
-    ou::VertexArray m_wolfVao;
+    ObjectModel m_wolf;
     PhongMaterial m_wolfMaterial;
 
-    std::vector<int> m_spiderNVertices;
-    std::vector<int> m_spiderVertexOffset;
-    ou::VertexBuffer m_spiderVbo;
-    ou::VertexArray m_spiderVao;
+    ObjectModel m_spider;
     PhongMaterial m_spiderMaterial;
+
+    ObjectModel m_carBody;
+    PhongMaterial m_carBodyMaterial;
+
+    ObjectModel m_carWheel;
+    PhongMaterial m_carWheelMaterial;
+
+    ObjectModel m_carNut;
+    PhongMaterial m_carNutMaterial;
+
+    ObjectModel m_cow;
+    PhongMaterial m_cowMaterial;
+
+    ObjectModel m_teapot;
+    PhongMaterial m_teapotMaterial;
+
+    ObjectModel m_ironman;
+    PhongMaterial m_ironmanMaterial;
 };
 
 #endif // RENDERSYSTEM_H
