@@ -479,8 +479,7 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
     if (scene.wireframeOn) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(2);
-    }
-    else {
+    } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
@@ -569,6 +568,7 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         glm::mat3 modelViewMatrixInvTrans;
 
         modelViewMatrix = viewMatrix;
+        modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-45.f), glm::vec3(0, 1, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(200.0f));
 
         modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
@@ -590,13 +590,14 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
     // draw spider
     for (ou::Entity const& ent : engine.iterate<Spider>()) {
-        Spider const& spider = ent.get<Spider>();
+        auto const& spider = ent.get<Spider>();
+        auto const& hitbox = ent.get<Hitbox>();
 
         glm::mat4 modelViewMatrix, modelViewProjectionMatrix;
         glm::mat3 modelViewMatrixInvTrans;
 
         modelViewMatrix = viewMatrix;
-        modelViewMatrix = glm::translate(modelViewMatrix, spider.pos);
+        modelViewMatrix = glm::translate(modelViewMatrix, hitbox.pos);
         modelViewMatrix = glm::rotate(modelViewMatrix, spider.angle, glm::vec3(0, 1, 0));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(80.0f));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(180.0f), glm::vec3(0, 0, 1));
@@ -730,10 +731,11 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
     // draw teapot
     for (ou::Entity const& ent : engine.iterate<Teapot>()) {
-        Teapot const& teapot = ent.get<Teapot>();
+        auto const& teapot = ent.get<Teapot>();
+        auto const& hitbox = ent.get<Hitbox>();
 
         glm::mat4 modelMatrix(1.0f);
-        modelMatrix = glm::translate(modelMatrix, teapot.pos);
+        modelMatrix = glm::translate(modelMatrix, hitbox.pos);
         modelMatrix = glm::rotate(modelMatrix, teapot.angle, glm::vec3(0, 1, 0));
         modelMatrix = glm::scale(modelMatrix, glm::vec3(20.0f));
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 1.6f, 0));

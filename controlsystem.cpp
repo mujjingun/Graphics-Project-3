@@ -112,7 +112,7 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
         }
     }
 
-    float smoothing = 1 - glm::exp(-float(deltaTime) * 15.0);
+    float smoothing = 1 - glm::exp(-float(deltaTime) * 30.0);
     scene.lat = glm::mix(scene.lat, scene.destLat, smoothing);
     scene.lon = glm::mix(scene.lon, scene.destLon, smoothing);
 

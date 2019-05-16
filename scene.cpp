@@ -26,11 +26,11 @@ Scene::Scene()
     m_engine.addEntity(ou::Entity{ state, Input{} });
     m_engine.addEntity(ou::Entity{ Tiger{} });
     m_engine.addEntity(ou::Entity{ Tiger{ 0, 3.0f }, TigerCam{} });
-    m_engine.addEntity(ou::Entity{ Car{}, CarCam{} });
-    m_engine.addEntity(ou::Entity{ Car{} });
-    m_engine.addEntity(ou::Entity{ Teapot{ glm::vec3(-300.0f, 0, -200.f) } });
+    m_engine.addEntity(ou::Entity{ Car{}, CarCam{}, Hitbox{} });
+    m_engine.addEntity(ou::Entity{ Car{}, Hitbox{} });
+    m_engine.addEntity(ou::Entity{ Teapot{}, Hitbox{ glm::vec3(-300.0f, 0, -200.f) } });
     m_engine.addEntity(ou::Entity{ Wolf{} });
-    m_engine.addEntity(ou::Entity{ Spider{ glm::vec3(80.0f, 0, 0) } });
+    m_engine.addEntity(ou::Entity{ Spider{}, Hitbox{ glm::vec3(80.0f, 0, 0), 5.f } });
 
     m_engine.addSystem(std::make_unique<AnimationSystem>());
     m_engine.addSystem(std::make_unique<ControlSystem>(), 8);

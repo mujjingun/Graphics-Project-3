@@ -12,8 +12,8 @@ struct Camera {
 struct SceneState {
     glm::ivec2 windowSize;
     Camera primary, second;
-    float destLat{glm::radians(45.f)}, destLon{glm::radians(45.f)};
-    float lat{destLat}, lon{destLon};
+    float destLat{ glm::radians(45.f) }, destLon{ glm::radians(45.f) };
+    float lat{ destLat }, lon{ destLon };
     bool carViewportOn = false;
     bool tigerViewportOn = false;
     bool secondCamOn = false;
@@ -32,16 +32,20 @@ struct Wolf {
     float elapsedTime = 0;
 };
 
-struct Spider {
+struct Hitbox {
     glm::vec3 pos{};
+    float weight{ 1.f };
+    float size{ 50.f };
+};
 
+struct Spider {
     int currFrame = 0;
     float elapsedTime = 0;
     float angle = 0;
 };
 
 struct Teapot {
-    glm::vec3 pos{}, vel{}, acc{ 0, -2000.f, 0 };
+    glm::vec3 vel{}, acc{ 0, -2000.f, 0 };
     float angle = 0;
 };
 

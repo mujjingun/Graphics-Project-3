@@ -70,6 +70,7 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
     float carSpeed = 300.0f;
     for (ou::Entity& ent : engine.iterate<Car>()) {
         Car& car = ent.get<Car>();
+        Hitbox& hitbox = ent.get<Hitbox>();
 
         car.elapsedTime += deltaTime;
 
@@ -124,6 +125,8 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
         glm::vec2 rearPos = car.pos - car.dir * 200.0f;
         glm::vec2 rearDir = rearPos - lastRearPos;
         car.rearRot = std::atan2(rearDir.x, rearDir.y) - car.angle;
+
+        hitbox.pos = glm::vec3(car.pos.x, 0, car.pos.y);
     }
 
     Input& input = engine.getOne<Input>();
@@ -162,9 +165,9 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
     glm::vec3 mouseUnprojPos{};
     bool mouseOnFloor = unproject(mouseUnprojPos);
     if (mouseOnFloor && !scene.secondCamOn && input.isKeyPressed('z') && input.isMouseClicked()) {
-        Teapot teapot;
-        teapot.pos = mouseUnprojPos;
-        engine.addEntity(ou::Entity{ teapot });
+        Hitbox hitbox;
+        hitbox.pos = mouseUnprojPos;
+        engine.addEntity(ou::Entity{ Teapot{}, hitbox });
     }
 
     bool jump = false;
@@ -174,36 +177,37 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
     }
 
     for (ou::Entity& ent : engine.iterate<Teapot>()) {
-        Teapot& teapot = ent.get<Teapot>();
+        auto& teapot = ent.get<Teapot>();
+        auto& hitbox = ent.get<Hitbox>();
 
         if (input.isKeyPressed('j')) {
             teapot.angle += glm::radians(360.0f) * deltaTime;
         }
 
-        teapot.pos += teapot.vel * deltaTime;
         teapot.vel += teapot.acc * deltaTime;
+        hitbox.pos += teapot.vel * deltaTime;
 
         float bounce = 0.7f;
         float friction = 0.7f;
 
-        if (teapot.pos.y < 0) {
-            teapot.pos.y = 0;
+        if (hitbox.pos.y < 0) {
+            hitbox.pos.y = 0;
             teapot.vel.y *= -bounce;
             teapot.vel.x *= friction;
             teapot.vel.z *= friction;
         }
 
-        if (teapot.pos.y > 500.0f) {
-            teapot.pos.y = 500.0f;
+        if (hitbox.pos.y > 500.0f) {
+            hitbox.pos.y = 500.0f;
             teapot.vel.y *= -bounce;
         }
 
-        if (teapot.pos.x < -500.0f || teapot.pos.x > 500.0f) {
-            teapot.pos.x = glm::clamp(teapot.pos.x, -500.0f, 500.0f);
+        if (hitbox.pos.x < -500.0f || hitbox.pos.x > 500.0f) {
+            hitbox.pos.x = glm::clamp(hitbox.pos.x, -500.0f, 500.0f);
             teapot.vel.x *= -bounce;
         }
-        if (teapot.pos.z < -500.0f || teapot.pos.z > 500.0f) {
-            teapot.pos.z = glm::clamp(teapot.pos.z, -500.0f, 500.0f);
+        if (hitbox.pos.z < -500.0f || hitbox.pos.z > 500.0f) {
+            hitbox.pos.z = glm::clamp(hitbox.pos.z, -500.0f, 500.0f);
             teapot.vel.z *= -bounce;
         }
 
@@ -214,17 +218,41 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
     }
 
     for (ou::Entity& ent : engine.iterate<Spider>()) {
-        Spider& spider = ent.get<Spider>();
+        auto& spider = ent.get<Spider>();
+        auto& hitbox = ent.get<Hitbox>();
 
         if (mouseOnFloor) {
-            glm::vec3 diff = mouseUnprojPos - spider.pos;
+            glm::vec3 diff = mouseUnprojPos - hitbox.pos;
             glm::vec3 dir = glm::normalize(diff);
             spider.angle = std::atan2(dir.x, dir.z);
             if (glm::length(diff) > 100.0f) {
-                spider.pos += dir * 100.0f * deltaTime;
-                spider.pos = glm::clamp(spider.pos, -500.0f, 500.0f);
+                hitbox.pos += dir * 100.0f * deltaTime;
+                hitbox.pos = glm::clamp(hitbox.pos, -500.0f, 500.0f);
+                hitbox.pos.y = 0;
                 spider.currFrame = glm::fract(spider.elapsedTime / 0.5f) * 16;
                 spider.elapsedTime += deltaTime;
+            }
+        }
+    }
+
+    // collision detection
+    for (ou::Entity& ent : engine.iterate<Hitbox>()) {
+        auto& a = ent.get<Hitbox>();
+
+        for (ou::Entity& ent : engine.iterate<Hitbox>()) {
+            auto& b = ent.get<Hitbox>();
+
+            if (&a == &b) {
+                continue;
+            }
+
+            auto diff = a.pos - b.pos;
+            auto length = glm::length(diff);
+            if (length < a.size + b.size) {
+                diff = glm::normalize(diff) * (length - (a.size + b.size));
+                auto norm = 1.f / (a.weight + b.weight);
+                a.pos -= diff * b.weight * norm;
+                b.pos += diff * a.weight * norm;
             }
         }
     }
