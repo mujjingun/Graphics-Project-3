@@ -58,8 +58,8 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
 
         float angle = tiger.elapsedTime * glm::radians(90.0f);
         float magn = 200.0f * (1 + glm::sin(angle * 5.0f) * 0.1f);
-        hitbox.pos = glm::rotate(glm::mat4(1.0), -angle, glm::vec3(0.0f, 1.0f, 0.0f))
-            * glm::vec4(magn, 0.0f, 0.0f, 1.0f);
+        hitbox.pos = glm::vec3(glm::rotate(glm::mat4(1.0), -angle, glm::vec3(0.0f, 1.0f, 0.0f))
+            * glm::vec4(magn, 0.0f, 0.0f, 1.0f));
     }
 
     for (ou::Entity& ent : engine.iterate<Wolf>()) {

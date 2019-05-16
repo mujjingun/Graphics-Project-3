@@ -29,10 +29,11 @@ static std::unordered_map<std::string, GLint> find_all_uniforms(GLuint program)
 
     for (int i = 0; i < count; i++) {
         glGetActiveUniform(program, i, bufSize, &length, &size, &type, name);
+		int loc = glGetUniformLocation(program, name);
 
         std::cout << "Uniform #" << i << " Size: " << size << " Type: " << type << " Name: " << name << "\n";
 
-        result.insert({ std::string(name), i });
+        result.insert({ std::string(name), loc });
     }
 
     return result;

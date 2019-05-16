@@ -371,7 +371,6 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
 
     if (scene.wireframeOn) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glLineWidth(2);
     } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
@@ -635,7 +634,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
 
         Car const& car = engine.getOneEnt<CarCam>().get<Car>();
 
-        glm::mat3 rot = glm::rotate(glm::mat4(1.0f), car.angle, glm::vec3(0, 1, 0));
+        glm::mat3 rot = glm::mat3(glm::rotate(glm::mat4(1.0f), car.angle, glm::vec3(0, 1, 0)));
 
         glm::vec3 pos = glm::vec3(car.pos.x, 80.0f, car.pos.y) + rot * glm::vec3(0, 0, 68.0f);
         glm::vec3 lookDir = rot * glm::vec3(0, 0, 1);
@@ -656,7 +655,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         glm::vec3 dir = glm::normalize(hitbox.pos - tiger.lastPos);
         float angle = std::atan2(dir.x, dir.z);
 
-        glm::mat3 rot = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0));
+        glm::mat3 rot = glm::mat3(glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0)));
         glm::vec3 pos = hitbox.pos + rot * glm::vec3(0, 60.0f, 50.0f);
         glm::vec3 lookDir = rot * glm::vec3(0, -0.1f, 1);
 

@@ -40,9 +40,9 @@ void ControlSystem::update(ou::ECSEngine& engine, float deltaTime)
                 angle.y = alt - glm::radians(180.0f - min_angle);
             }
 
-            cam.lookDir = glm::rotate(glm::mat4(1.0), -angle.y, right)
+            cam.lookDir = glm::vec3(glm::rotate(glm::mat4(1.0), -angle.y, right)
                 * glm::rotate(glm::mat4(1.0), angle.x, glm::vec3(cam.upDir))
-                * glm::dvec4(cam.lookDir, 1.0);
+                * glm::dvec4(cam.lookDir, 1.0));
 
             cam.lookDir = glm::normalize(cam.lookDir);
         }
