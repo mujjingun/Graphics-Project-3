@@ -415,11 +415,9 @@ void RenderSystem::render(ou::ECSEngine& engine, glm::mat4 viewMatrix, float fov
         auto const& tiger = ent.get<Tiger>();
         auto const& hitbox = ent.get<Hitbox>();
 
-        glm::vec3 dir = glm::normalize(hitbox.pos - tiger.lastPos);
-
         glm::mat4 modelViewMatrix;
         modelViewMatrix = glm::translate(viewMatrix, hitbox.pos);
-        modelViewMatrix = glm::rotate(modelViewMatrix, std::atan2(dir.x, dir.z), glm::vec3(0, 1, 0));
+        modelViewMatrix = glm::rotate(modelViewMatrix, tiger.angle, glm::vec3(0, 1, 0));
         modelViewMatrix = glm::rotate(modelViewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         modelViewMatrix = glm::scale(modelViewMatrix, glm::vec3(0.5f));
 
@@ -652,10 +650,7 @@ void RenderSystem::update(ou::ECSEngine& engine, float)
         auto const& tiger = tigerEnt.get<Tiger>();
         auto const& hitbox = tigerEnt.get<Hitbox>();
 
-        glm::vec3 dir = glm::normalize(hitbox.pos - tiger.lastPos);
-        float angle = std::atan2(dir.x, dir.z);
-
-        glm::mat3 rot = glm::mat3(glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0, 1, 0)));
+        glm::mat3 rot = glm::mat3(glm::rotate(glm::mat4(1.0f), tiger.angle, glm::vec3(0, 1, 0)));
         glm::vec3 pos = hitbox.pos + rot * glm::vec3(0, 60.0f, 50.0f);
         glm::vec3 lookDir = rot * glm::vec3(0, -0.1f, 1);
 

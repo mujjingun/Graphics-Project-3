@@ -54,12 +54,26 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
         auto& hitbox = ent.get<Hitbox>();
         tiger.currFrame = glm::fract(tiger.elapsedTime / 0.2f) * 12;
         tiger.elapsedTime += deltaTime;
-        tiger.lastPos = hitbox.pos;
+        glm::vec3 lastPos = hitbox.pos;
 
         float angle = tiger.elapsedTime * glm::radians(90.0f);
-        float magn = 200.0f * (1 + glm::sin(angle * 5.0f) * 0.1f);
-        hitbox.pos = glm::vec3(glm::rotate(glm::mat4(1.0), -angle, glm::vec3(0.0f, 1.0f, 0.0f))
+		float magn = glm::cos(16 * angle) - 4 * glm::sin(5 * angle) * glm::cos(.3f * angle) + 6;
+		magn *= 50.0f;
+        tiger.destPos = glm::vec3(glm::rotate(glm::mat4(1.0), -angle, glm::vec3(0.0f, 1.0f, 0.0f))
             * glm::vec4(magn, 0.0f, 0.0f, 1.0f));
+		glm::vec3 diff = tiger.destPos - hitbox.pos;
+		float length = glm::length(diff);
+		hitbox.pos += diff / length * glm::min(length, 400.0f * deltaTime);
+
+		glm::vec3 dir = glm::normalize(hitbox.pos - lastPos);
+		float lastAngle = glm::mod(tiger.angle, glm::radians(360.0f));
+		tiger.angle = std::atan2(dir.x, dir.z);
+		tiger.angle = glm::mod(tiger.angle, glm::radians(360.0f));
+
+		// smoothing & phase unwrapping
+		float smoothing = 1 - glm::exp(-float(deltaTime) * 10.0);
+		float delta = glm::mod(tiger.angle - lastAngle + glm::radians(180.0f), glm::radians(360.0f)) - glm::radians(180.0f);
+		tiger.angle = lastAngle + delta * smoothing;
     }
 
     for (ou::Entity& ent : engine.iterate<Wolf>()) {
@@ -112,7 +126,11 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
         if (speed > 0) {
             glm::vec2 dir = glm::normalize(car.pos - lastPos);
             car.dir = dir;
+			float lastAngle = glm::mod(car.angle, glm::radians(360.0f));
             car.angle = std::atan2(dir.x, dir.y);
+			float smoothing = 1 - glm::exp(-float(deltaTime) * 3.0);
+			float delta = glm::mod(car.angle - lastAngle + glm::radians(180.0f), glm::radians(360.0f)) - glm::radians(180.0f);
+			car.angle = lastAngle + delta * smoothing;
         }
 
         car.wheelAngle += deltaTime * speed * glm::radians(1.0f);
@@ -168,7 +186,10 @@ void AnimationSystem::update(ou::ECSEngine& engine, float deltaTime)
     if (mouseOnFloor && !scene.secondCamOn && input.isKeyPressed('z') && input.isMouseClicked()) {
         Hitbox hitbox;
         hitbox.pos = mouseUnprojPos;
-        engine.addEntity(ou::Entity{ Teapot{}, hitbox });
+		std::uniform_real_distribution<float> dist(0, glm::radians(360.0f));
+		Teapot teapot;
+		teapot.angle = dist(engine.rand());
+        engine.addEntity(ou::Entity{ teapot, hitbox });
     }
 
     bool jump = false;
